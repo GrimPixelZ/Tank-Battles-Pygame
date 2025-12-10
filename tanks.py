@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+import copy
 
 # custom modules
 import env
@@ -67,7 +68,7 @@ class Player(pygame.sprite.Sprite):
     self.image = pygame.transform.scale(img_assets["tank_base"], (50, 50)) #applies image texture to player
     self.rect = self.image.get_rect() #assigns tillihe player's recent
     self.rect.center = (WIDTH / 2, HEIGHT / 2) #centres the player in the middle of the screen
-    self.speed = 7 #initial speed of the player without power ups
+    self.speed = 385 #initial speed of the player without power ups
     self.health = 10 #sets the initial player health
     self.maxHealth = 10 #sets the maximum health of the player
     self.iticks = 0 #initialises the amount of ticks the player is invincible for
@@ -81,22 +82,26 @@ class Player(pygame.sprite.Sprite):
 
 
   def move(self):
-    self.speedx = 0 #initiates speed variables for each direction
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
+    env.outputForDebugging("Delta time: "+str(dt))
+
+    self.speedx = 0 # initiates speed variables for each direction
     self.speedy = 0
-    keystate = pygame.key.get_pressed() #gets pressed keys
-    if keystate[pygame.K_LEFT] or keystate[pygame.K_a]: #detects which key was pressed
-      self.speedx += (self.speed*(-1)) #using += so that it doesn't prefer a certain direction when both keys are held
+    keystate = pygame.key.get_pressed() # gets pressed keys
+    if keystate[pygame.K_LEFT] or keystate[pygame.K_a]: # detects which key was pressed
+      self.speedx += (self.speed*(-1)) # using += so that it doesn't prefer a certain direction when both keys are held
     if keystate[pygame.K_RIGHT] or keystate[pygame.K_d]:
-      self.speedx += self.speed #speed values are dynamic and stored in the player class
+      self.speedx += self.speed # speed values are dynamic and stored in the player class
     if keystate[pygame.K_UP] or keystate[pygame.K_w]:
-      self.speedy += (self.speed*(-1)) #multiplies by -1 to go in the opposite direction
+      self.speedy += (self.speed*(-1)) # multiplies by -1 to go in the opposite direction
     if keystate[pygame.K_DOWN] or keystate[pygame.K_s]:
       self.speedy += self.speed
-    if self.speedx != 0 and self.speedy != 0: #using this to prevent diagonal movement being faster than straight movement
+    if self.speedx != 0 and self.speedy != 0: # using this to prevent diagonal movement being faster than straight movement
       self.speedx = self.speedx*0.70710678118
       self.speedy = self.speedy*0.70710678118 
-    self.rect.x += self.speedx #moves player position by speed
-    self.rect.y += self.speedy
+    self.rect.x += self.speedx*dt # moves player position by speed
+    self.rect.y += self.speedy*dt
 
 
   def shoot(self):
@@ -199,7 +204,7 @@ class Tank_Gun(pygame.sprite.Sprite):
   def update(self):
     #resets image to original appearance
     if self.parent.iticks == 0: #changes appearance to indicate invincibility
-      self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun"], (66, 32))
+      self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun"], (66, 32)) # type: ignore
       self.image = self.originalImage
     else:
       self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun_iframes"], (66, 32))
@@ -273,7 +278,7 @@ class Enemy(pygame.sprite.Sprite):
 
     # load loot
     self.scoreValue = myData["Score"]
-    self.loot = myData["Loot"]
+    self.loot = copy.deepcopy(myData["Loot"])
     lootDeletionList = [] # list of loot to remove if chance is not met; dict cannot change size during iteration
     for lootType in self.loot:
       # only drops if chance is met
@@ -282,13 +287,26 @@ class Enemy(pygame.sprite.Sprite):
         lootDeletionList.append(lootType)
         continue
 
+      amount = self.loot[lootType]["Amount"]
+      amountType = type(amount)
+      if amountType == tuple: # generates random amount
+        amount = random.randint(amount[0], amount[1])
+        self.loot[lootType]["Amount"] = amount # must overwrite so it does not change later
+      elif amountType == list:
+        amount = amount[0]
+
       for attribute in self.loot[lootType]:
         # generates any random distributions
         potentialTuple = self.loot[lootType][attribute]
         if type(potentialTuple) != tuple:
           continue
         # only run if tuple
-        self.loot[lootType][attribute] = random.randint(potentialTuple[0], potentialTuple[1])
+        
+        self.loot[lootType][attribute] = []
+        for idx in range(0, amount):
+          newValue = random.randint(potentialTuple[0], potentialTuple[1])
+          self.loot[lootType][attribute].append(newValue)
+      
     # deletes all loot that failed to drop
     for lootType in lootDeletionList:
       del self.loot[lootType] # removes from loot table
@@ -311,6 +329,9 @@ class Enemy(pygame.sprite.Sprite):
       #allSprites.add(self)
 
   def move(self):
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
+
     # move towards player by default
     canMoveEast = True
     canMoveWest = True
@@ -335,9 +356,9 @@ class Enemy(pygame.sprite.Sprite):
     
     #change position only if not colliding with anything
     #if (self.negXspeed and canMoveWest) or canMoveEast:
-    self.x += self.xspeed
+    self.x += self.xspeed*dt
     #if (self.negYspeed and canMoveNorth) or canMoveSouth:
-    self.y += self.yspeed #this is here due to pixel rounding
+    self.y += self.yspeed*dt #this is here due to pixel rounding
     self.rect.centerx = self.x
     self.rect.centery = self.y
 
@@ -404,7 +425,7 @@ class Enemy(pygame.sprite.Sprite):
     #elif abs(self.xspeed)+abs(self.yspeed) < (self.speed-0.1):
     #  draw_text(display, "TOO SLOW ERROR", 18, WIDTH / 2, 130)
 
-  def rotate(self, targetRect: pygame.rect):
+  def rotate(self, targetRect: pygame.rect.Rect):
     #point towards player``
     self.image = pygame.transform.smoothscale(self.baseImage, (32, 52))
     if targetRect.centerx-self.rect.centerx == 0: #prevents division by zero
@@ -431,6 +452,8 @@ class Enemy(pygame.sprite.Sprite):
       self.kill()
       # drop loot
       if killedByPlayer: #makes it not drop loot if player doesn't kill with gun
+        LOOT_POSITION_VARIATION = 20
+
         audio_assets["kill"].play()
         # increment score by score value
         score += self.scoreValue
@@ -442,9 +465,9 @@ class Enemy(pygame.sprite.Sprite):
           value = lootInfo["Value"]
 
           # place correct number of loot drops
-          for i in range(1, amount):
-            position = (self.rect.centerx+random.randint(-20,20),self.rect.centery+random.randint(-20,20))
-            placePickup(lootType, position, value)
+          for i in range(0, amount):
+            position = (self.rect.centerx+random.randint(-LOOT_POSITION_VARIATION,LOOT_POSITION_VARIATION),self.rect.centery+random.randint(-LOOT_POSITION_VARIATION,LOOT_POSITION_VARIATION))
+            placePickup(lootType, position, value[i])
 
   
   def update(self):
@@ -509,7 +532,10 @@ class Pickup(pygame.sprite.Sprite):
   def tryDestroy(self):
     self.kill()
   
-  def moveTo(self, targetRect: pygame.rect):
+  def moveTo(self, targetRect: pygame.rect.Rect):
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
+
     xChange = abs(targetRect.centerx - self.x)
     yChange = abs(targetRect.centery - self.y)
     distance = math.sqrt((xChange**2)+(yChange**2))
@@ -546,8 +572,8 @@ class Pickup(pygame.sprite.Sprite):
       self.yspeed = yProp * self.speed
     #print("xspeed", self.xspeed)
     #print("yspeed", self.yspeed)
-    self.x += self. xspeed
-    self.y += self.yspeed #this is here due to pixel rounding
+    self.x += self.xspeed*dt
+    self.y += self.yspeed*dt #this is here due to pixel rounding
     self.rect.centerx = self.x
     self.rect.centery = self.y
   
@@ -571,7 +597,7 @@ class Coin(Pickup):
     self.kill()
 
 class Bullet(pygame.sprite.Sprite):
-  def __init__(self, position, targetRect: pygame.rect, pierce=0):
+  def __init__(self, position, targetRect: pygame.rect.Rect, pierce=0):
     pygame.sprite.Sprite.__init__(self)
     self.image = pygame.transform.scale(img_assets["bullet"], (28, 14)) #sets image
     self.rect = self.image.get_rect()
@@ -588,33 +614,33 @@ class Bullet(pygame.sprite.Sprite):
     self.y = position[1]-7
     
     #super high-tech calculate movement towards crosshair code
-    self.speed = 16
+    self.speed = 880
     self.negSpeed = self.speed*(-1) #used to reduce calculations later on
     if targetRect.centerx - self.x < 0: 
-      self.xDif = (targetRect.centerx - self.x)*(-1)
+      xDif = (targetRect.centerx - self.x)*(-1)
     else:
-      self.xDif = targetRect.centerx - self.x
+      xDif = targetRect.centerx - self.x
     if targetRect.centery - self.y < 0:
-      self.yDif = (targetRect.centery - self.y)*(-1)
+      yDif = (targetRect.centery - self.y)*(-1)
     else:
-      self.yDif = targetRect.centery - self.y
-    self.totalDif = self.xDif+self.yDif
-    if self.totalDif == 0:
-      self.totalDif = 1
-    self.xProp = self.xDif/self.totalDif
-    self.yProp = self.yDif/self.totalDif
+      yDif = targetRect.centery - self.y
+    totalDif = xDif+yDif
+    if totalDif == 0:
+      totalDif = 1
+    xProp = xDif/totalDif
+    yProp = yDif/totalDif
     if targetRect.centerx - self.x < 0:
-      self.xspeed = self.xProp * self.negSpeed
+      self.xspeed = xProp * self.negSpeed
     else:
-      self.xspeed = self.xProp * self.speed
+      self.xspeed = xProp * self.speed
     if targetRect.centery - self.y < 0:
-      self.yspeed = self.yProp * self.negSpeed
+      self.yspeed = yProp * self.negSpeed
     else:
-      self.yspeed = self.yProp * self.speed
+      self.yspeed = yProp * self.speed
 
     #position in front of gun
-    self.x += self.xspeed*3.6
-    self.y += self.yspeed*3.6
+    self.x += self.xspeed/55*3.6
+    self.y += self.yspeed/55*3.6
 
     #points towards crosshair
     self.image = pygame.transform.scale(img_assets["bullet"], (28, 13))
@@ -628,9 +654,12 @@ class Bullet(pygame.sprite.Sprite):
     self.pierce = pierce # how many enemies a bullet can hit
 
   def move(self):
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
+
     # applies movement to bullet
-    self.x += self.xspeed
-    self.y += self.yspeed
+    self.x += self.xspeed*dt
+    self.y += self.yspeed*dt
     self.rect.centerx = self.x
     self.rect.centery = self.y
 
@@ -671,8 +700,12 @@ randomText = ui.TextLabel((0,0), (200, 200), {"Text": "I am the ultimate sigma"}
 
 def buttonFunc():
   tank_base.tryDestroy(1)
+def evilFunc():
+  for x in range(0,100):
+    place_object((random.randint(0, WIDTH), random.randint(0, HEIGHT)), "soldier")
 
-funnyButton = ui.Button((200, 200), (50, 100), buttonFunc, 2, {"Colour": (255,0,0)})
+funnyButton = ui.DetailedButton((200, 200), (500, 750), buttonFunc, {"Text": {"Text": "sigma button?"}, "Image": img_assets["soldier"]}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
+evilButton = ui.TextButton((750, 200), (200, 100), evilFunc, {"Text": "heheheh", "Size": 50}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
 allSprites.add(tank_base, tank_gun)
 
 pygame.mixer.music.play(loops=-1) #infinitely loops the BGM

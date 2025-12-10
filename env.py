@@ -8,7 +8,7 @@ running = True
 #values for window size
 WIDTH = 1920
 HEIGHT = 1080
-FPS = 15 #frames per second
+FPS = 60 #frames per second
 
 #predefined colours
 BLACK = (0, 0, 0)

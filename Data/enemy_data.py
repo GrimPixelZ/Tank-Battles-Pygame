@@ -3,8 +3,11 @@ enemies = {
         # stats
         "Health": 1,
         "Damage": 1,
-        "Speed": 5,
+        "Speed": 275,
         "Score": 5,
+        # spawning
+        "SpawningScore": 0, # score enemy spawns at
+        "ClusterSize": 5, # how many can spawn in one cluster
         # visual overrides
         "ImageSize": (32, 52),
         # loot drops
@@ -15,7 +18,7 @@ enemies = {
                 "Chance": 0.02
             },
             "coin": {
-                "Amount": (2, 4),
+                "Amount": (1, 2),
                 "Value": (5, 10),
                 "Chance": 1
             },
@@ -25,8 +28,11 @@ enemies = {
         # stats
         "Health": 3,
         "Damage": 2,
-        "Speed": 3,
+        "Speed": 165,
         "Score": 10,
+        # spawning
+        "SpawningScore": 200,
+        "ClusterSize": 3,
         # visual overrides
         "Image": "soldier",
         "ImageSize": (32, 52),
@@ -44,8 +50,8 @@ enemies = {
                 "Chance": 0.02
             },
             "coin": {
-                "Amount": (2, 4),
-                "Value": (10, 20),
+                "Amount": (1, 3),
+                "Value": (8, 15),
                 "Chance": 1
             },
         }
