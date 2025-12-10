@@ -1,0 +1,4 @@
+To-do:
+- suicide bomber enemies that kill themselves + explode if you shoot (discourage player from holding shoot?)
+- make health pickups move towards the player
+- make coin drops spread out randomly
