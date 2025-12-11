@@ -259,14 +259,25 @@ class Enemy(pygame.sprite.Sprite):
     if "Recolour" in myData:
       for recolourData in myData["Recolour"]:
         recolourImage(self.image, recolourData["TargetColour"], recolourData["ReplacementColour"])
-    # sets default image
-    self.baseImage = self.image
+    # sets radius for collision
+    if "Radius" in myData:
+      self.radius = myData["Radius"]
+    else:
+      self.radius = 1
+    
+    # initialises rect
     self.rect = self.image.get_rect()
     self.rect.center = position
-    #pygame.draw.circle(self.image, BLUE, (self.rect.center[0]-1, self.rect.center[1]), self.radius)
     self.rect.center = position
     self.x = self.rect.centerx
     self.y = self.rect.centery
+
+    # show debug hitbox
+    if DEBUG_MODE:
+      pygame.draw.circle(self.image, BLUE, (self.image.get_width() // 2, self.image.get_height() // 2), self.radius)
+
+    # sets default image
+    self.baseImage = self.image
 
     # setup stats
     self.speed = myData["Speed"] # enemy movement speed
@@ -328,102 +339,67 @@ class Enemy(pygame.sprite.Sprite):
       bottomSprites.remove(self)
       #allSprites.add(self)
 
+  # move towards player
   def move(self):
     # makes movement ignore fps
     dt = clock.get_time()/1000
 
     # move towards player by default
-    canMoveEast = True
-    canMoveWest = True
-    canMoveNorth = True
-    canMoveSouth = True
-    tryXMovement = 0.0
-    tryYMovement = 0.0
+    targetPos = tank_base.rect.center
 
-    #for mob in self.touchingMob:
-    #  if mob[0] > self.x:
-        #canMoveEast = False
-    #    xMultiplier = abs(min(1, (mob[0]-self.x)/5))
-    #  if mob[0] < self.x:
-        #canMoveWest = False
-    #    xMultiplier = abs(min(1, (self.x-mob[0])/5))
-    #  if mob[1] < self.y:
-        #canMoveNorth = False
-    #    yMultiplier = abs(min(1, (self.x-mob[1])/5))
-    #  if mob[1] > self.y:
-        #canMoveSouth = False
-    #    yMultiplier = abs(min(1, (mob[1]-self.x)/5))
-    
-    #change position only if not colliding with anything
-    #if (self.negXspeed and canMoveWest) or canMoveEast:
+    # draw line of movement
+    if DEBUG_MODE:
+      pygame.draw.line(display, RED, (self.x, self.y), targetPos, 3)
+
+    dx = targetPos[0] - self.x
+    dy = targetPos[1] - self.y
+    magnitude = math.hypot(dx, dy)
+
+    # adjust for proportion
+    dx /= magnitude
+    dy /= magnitude
+
+    # apply speed
+    self.xspeed = dx*self.speed
+    self.yspeed = dy*self.speed
+
+    # move at end of frame
     self.x += self.xspeed*dt
-    #if (self.negYspeed and canMoveNorth) or canMoveSouth:
-    self.y += self.yspeed*dt #this is here due to pixel rounding
+    self.y += self.yspeed*dt #separate non-rounded x/y values used
     self.rect.centerx = self.x
     self.rect.centery = self.y
 
-    #super high-tech move towards player code
-    xDif = abs((tank_base.rect.centerx - self.x))
-    yDif = abs((tank_base.rect.centery - self.y))
-    totalDif = xDif+yDif
-    if totalDif == 0:
-      totalDif = 1
-    xProp = xDif/totalDif
-    yProp = yDif/totalDif
-    self.xspeed = 0.0
-    self.yspeed = 0.0
-    negXspeed = None
-    negYspeed = None
-    if tank_base.rect.centerx - self.x < 0.0:
-      negXspeed = True
-    elif tank_base.rect.centerx - self.x > 0.0:
-      negXspeed = False
-    if tank_base.rect.centery - self.y < 0.0:
-      negYspeed = True
-    elif tank_base.rect.centery - self.y > 0.0:
-      negYspeed = False
+    # collide with other enemies
+    for otherEnemy in mobs:
+      # ignore itself
+      if otherEnemy == self:
+        continue
+      
+      dx = self.x - otherEnemy.x
+      dy = self.y - otherEnemy.y
+      magnitude = math.hypot(dx, dy)
+      minDist = self.radius + otherEnemy.radius # overlap distance
 
-    if negXspeed and canMoveWest:
-      self.xspeed = xProp * self.negSpeed
-    elif canMoveEast:
-      self.xspeed = xProp * self.speed
-    else:
-      self.xspeed = 0.0
-      tryYMovement = xProp * self.speed
-    if negYspeed and canMoveNorth:
-      self.yspeed = yProp * self.negSpeed
-    elif canMoveSouth:
-      self.yspeed = yProp * self.speed
-    else:
-      self.yspeed = 0.0
-      tryXMovement = yProp * self.speed
+      # enemies are colliding
+      if magnitude < minDist:
+        overlapDist = minDist-magnitude # amount to push back by
 
-    
-    if tryXMovement != 0.0:
-      if negXspeed and canMoveWest:
-        self.xspeed -= tryXMovement
-      elif canMoveEast:
-        self.xspeed += tryXMovement
-    if tryYMovement != 0.0:
-      if negYspeed and canMoveNorth:
-        self.yspeed -= tryYMovement
-      elif canMoveSouth:
-        self.yspeed += tryYMovement
-    
-    #print("touching:", self.touchingMob)
-    #self.touchingMob = []
-    #print("xspeed", self.xspeed)
-    #print("yspeed", self.yspeed)
-    #draw_text(display, "xspeed "+str(self.xspeed), 18, WIDTH / 2, 90) #this is all code for debugging movement
-    #draw_text(display, "yspeed "+str(self.yspeed), 18, WIDTH / 2, 110)
-    #draw_text(display, "x "+str(self.x), 18, WIDTH / 2, 10)
-    #draw_text(display, "y "+str(self.y), 18, WIDTH / 2, 30)
-    #draw_text(display, "rect.x "+str(self.rect.x), 18, WIDTH / 2, 50)
-    #draw_text(display, "rect.y "+str(self.rect.y), 18, WIDTH / 2, 70)
-    #if abs(self.xspeed)+abs(self.yspeed) > (self.speed+0.1):
-    #  draw_text(display, "TOO FAST ERROR", 18, WIDTH / 2, 130)
-    #elif abs(self.xspeed)+abs(self.yspeed) < (self.speed-0.1):
-    #  draw_text(display, "TOO SLOW ERROR", 18, WIDTH / 2, 130)
+        # normalise direction
+        dx /= magnitude
+        dy /= magnitude
+
+        # push them apart; cut in half so both enemies move equally
+        self.x += dx * overlapDist * 0.5
+        self.y += dy * overlapDist * 0.5
+        otherEnemy.x -= dx * overlapDist * 0.5
+        otherEnemy.y -= dy * overlapDist * 0.5
+
+        self.rect.center = (self.x, self.y)
+        otherEnemy.rect.center = (otherEnemy.x, otherEnemy.y)
+
+
+
+
 
   def rotate(self, targetRect: pygame.rect.Rect):
     #point towards player``
@@ -696,7 +672,7 @@ crosshair = ui.Cursor((25,25), 10, img_assets["crosshair"], {"Transparency": 1})
 health_container = Health_Container("container")
 health_container_inner = Health_Container("inner") 
 # shopBase = ui.Frame((0,0), (500,500), 1, {"Colour": (255,0,0)}, {"Thickness": 10, "Transparency": 0.3})
-randomText = ui.TextLabel((0,0), (200, 200), {"Text": "I am the ultimate sigma"}, 2, {"Transparency": 1})
+# randomText = ui.TextLabel((0,0), (200, 200), {"Text": "I am the ultimate sigma"}, 2, {"Transparency": 1})
 
 def buttonFunc():
   tank_base.tryDestroy(1)
@@ -704,7 +680,7 @@ def evilFunc():
   for x in range(0,100):
     place_object((random.randint(0, WIDTH), random.randint(0, HEIGHT)), "soldier")
 
-funnyButton = ui.DetailedButton((200, 200), (500, 750), buttonFunc, {"Text": {"Text": "sigma button?"}, "Image": img_assets["soldier"]}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
+funnyButton = ui.DetailedButton((200, 200), (200, 100), buttonFunc, {"Text": {"Text": "sigma button?"}, "Image": img_assets["soldier"]}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
 evilButton = ui.TextButton((750, 200), (200, 100), evilFunc, {"Text": "heheheh", "Size": 50}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
 allSprites.add(tank_base, tank_gun)
 
@@ -823,6 +799,14 @@ def showCooldown():
     # draw full part of bar
     pygame.draw.rect(display, BLACK, fullBar)
 
+# draws all sprites to screen
+def drawAll():
+  bottomSprites.draw(display)
+  mobs.draw(display)
+  allSprites.draw(display) #draws the sprites to the screen
+  topSprites.draw(display)
+
+
 # bind all inputs
 # lambda works to "define" functions
 # stop the game running
@@ -902,14 +886,12 @@ while env.running: #runs the game loop
     spawn_loot()
     # score = collisions(score)
     bottomSprites.update()
-    allSprites.update()
     mobs.update()
-    
+    allSprites.update()
     topSprites.update()
-    bottomSprites.draw(display)
-    mobs.draw(display)
-    allSprites.draw(display) #draws the sprites to the screen
-    topSprites.draw(display)
+
+    # draws all to the screen
+    drawAll()
 
     # collisions done after they are shown
     collisions()
@@ -926,10 +908,10 @@ while env.running: #runs the game loop
       draw_text(display, env.currentDebugOutput, 18, WIDTH / 2, 120)
 
   topSprites.update()
-  bottomSprites.draw(display)
-  mobs.draw(display)
-  allSprites.draw(display) #draws the sprites to the screen
-  topSprites.draw(display)
+  
+  # draws all to the screen
+  drawAll()
+
   if clock.get_fps() >= 30:
     pygame.mouse.set_visible(False) #makes the mouse invisible if game isn't lagging
   else:

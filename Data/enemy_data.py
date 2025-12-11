@@ -5,6 +5,7 @@ enemies = {
         "Damage": 1,
         "Speed": 275,
         "Score": 5,
+        "Radius": 15, # for collisions
         # spawning
         "SpawningScore": 0, # score enemy spawns at
         "ClusterSize": 5, # how many can spawn in one cluster
@@ -26,22 +27,23 @@ enemies = {
     },
     "brute": {
         # stats
-        "Health": 3,
+        "Health": 4,
         "Damage": 2,
         "Speed": 165,
         "Score": 10,
+        "Radius": 17, # for collisions
         # spawning
         "SpawningScore": 200,
         "ClusterSize": 3,
         # visual overrides
-        "Image": "soldier",
-        "ImageSize": (32, 52),
-        "Recolour": [ # changes colour of enemy
-            {
-                "TargetColour": (255, 0, 0),
-                "ReplacementColour": (0,0,255)
-            }
-        ],
+        "Image": "brute",
+        "ImageSize": (37, 59),
+        # "Recolour": [ # changes colour of enemy
+        #     {
+        #         "TargetColour": (255, 0, 0),
+        #         "ReplacementColour": (0,0,255)
+        #     }
+        # ],
         # loot drops
         "Loot": {
             "health": {

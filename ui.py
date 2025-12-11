@@ -332,7 +332,7 @@ class DetailedButton(Button):
         scale = x_offset/imageSize[0]
         imageSize = (imageSize[0]*scale, imageSize[1]*scale)
         imageSurface = pygame.transform.smoothscale(image, imageSize)
-        self.image.blit(imageSurface, (outlineThickness,self.rect.centerx-imageSize[1]))
+        self.image.blit(imageSurface, (outlineThickness,0))
 
         self.func = func # function run when button is pressed
         Button._setupButton(self)
