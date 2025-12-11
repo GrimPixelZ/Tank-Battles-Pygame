@@ -55,6 +55,10 @@ img_assets = {
   "soldier": None,
   "unspawned_enemy": None,
   "brute": None,
+  "enemy_tank_base": None,
+  "enemy_tank_gun": None,
+  "enemy_bullet": None,
+  "ferret": None,
 
   # enemy/player
   "bullet": None,

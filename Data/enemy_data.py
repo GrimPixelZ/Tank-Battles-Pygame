@@ -1,3 +1,4 @@
+# stores the data of all spawnable enemies
 enemies = {
     "soldier": {
         # stats
@@ -8,7 +9,9 @@ enemies = {
         "Radius": 15, # for collisions
         # spawning
         "SpawningScore": 0, # score enemy spawns at
-        "ClusterSize": 5, # how many can spawn in one cluster
+        "SpawnWeight": 30, # weighted spawn system
+        "MinClusterSize": 1,
+        "MaxClusterSize": 5, # how many can spawn in one cluster
         # visual overrides
         "ImageSize": (32, 52),
         # loot drops
@@ -34,7 +37,9 @@ enemies = {
         "Radius": 17, # for collisions
         # spawning
         "SpawningScore": 200,
-        "ClusterSize": 3,
+        "SpawnWeight": 15, # weighted spawn system
+        "MinClusterSize": 1,
+        "MaxClusterSize": 3, # how many can spawn in one cluster
         # visual overrides
         "Image": "brute",
         "ImageSize": (37, 59),
@@ -58,4 +63,62 @@ enemies = {
             },
         }
     },
+    "tank": {
+        # stats
+        "Health": 3,
+        "Damage": 1,
+        "Speed": 200,
+        "Score": 15,
+        # spawning
+        "SpawningScore": 500,
+        "SpawnWeight": 5,
+        "MinClusterSize": 1,
+        "MaxClusterSize": 1, # how many can spawn in one cluster
+        "Class": "EnemyTank", # class override
+        # visual overrides
+        "Image": "enemy_tank_base",
+        "ImageSize": (50, 50),
+        # loot drops
+        "Loot": {
+            "health": {
+                "Amount": 1,
+                "Value": [1],
+                "Chance": 0.02
+            },
+            "coin": {
+                "Amount": (1, 4),
+                "Value": (8, 15),
+                "Chance": 1
+            },
+        }
+    },
+    "ferret": {
+        # stats
+        "Health": 2,
+        "Damage": 1,
+        "Speed": 20,
+        "Score": 15,
+        # spawning
+        "SpawningScore": 1000,
+        "SpawnWeight": 10,
+        "MinClusterSize": 1,
+        "MaxClusterSize": 2, # how many can spawn in one cluster
+        "Class": "SpeedsterEnemy",
+        # visual overrides
+        "Image": "ferret",
+        "ImageSize": (104, 52),
+        # loot drops
+        "Loot": {
+            "health": {
+                "Amount": 1,
+                "Value": [1],
+                "Chance": 0.02
+            },
+            "coin": {
+                "Amount": (1, 4),
+                "Value": (8, 15),
+                "Chance": 1
+            },
+        }
+    }
 }

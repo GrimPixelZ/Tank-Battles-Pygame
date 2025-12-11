@@ -60,31 +60,61 @@ def recolourImage(image: pygame.image, targetColour: list, replacementColour: li
 
   pixels.replace(targetColour, replacementColour)
   del pixels
-  
 
-class Player(pygame.sprite.Sprite):
+# collides with walls, etc
+class PhysicsObject(pygame.sprite.Sprite):
+  def _stayInBounds(self):
+    #keeps the object within bounds of the map
+    if self.rect.right > WIDTH:
+      self.x = WIDTH - self.rect.width/2
+      self.rect.centerx = self.x
+    if self.rect.left < 0:
+      self.x = 0 + self.rect.width/2
+      self.rect.centerx = self.x
+    if self.rect.bottom > HEIGHT:
+      self.y = HEIGHT - self.rect.height/2
+      self.rect.centery = self.y
+    if self.rect.top < 0:
+      self.y = 0 + self.rect.height/2
+      self.rect.centery = self.y     
+
+  def update(self):
+    #keeps the object within bounds of the map
+    self._stayInBounds()
+
+class Player(PhysicsObject):
   def __init__(self):
     pygame.sprite.Sprite.__init__(self) #marks object as a Pygame sprite
     self.image = pygame.transform.scale(img_assets["tank_base"], (50, 50)) #applies image texture to player
     self.rect = self.image.get_rect() #assigns tillihe player's recent
     self.rect.center = (WIDTH / 2, HEIGHT / 2) #centres the player in the middle of the screen
+
+    # set stats
     self.speed = 385 #initial speed of the player without power ups
-    self.health = 10 #sets the initial player health
     self.maxHealth = 10 #sets the maximum health of the player
+    self.shotCooldown = 400 #initialises the delay between weapon attacks
+    self.pierce = 0 # number of enemies bullets can pierce
+    self.pickupRange = 150 #initialises the player's pickup pickup range
+
+    # set initial states
+    self.health = self.maxHealth #sets the initial player health
     self.iticks = 0 #initialises the amount of ticks the player is invincible for
     self.maxiticks = 200 #sets the maximum number of invincibility ticks each time the player is damaged
     self.iticksStart = 0 #marks when the player's iticks were last started
     self.shooting = False #marks whether the player is currently shooting or not
     self.initialShotTime = 200 #used for determining how long ago the last bullet was fired, reassigned each time
-    self.shotCooldown = 400 #initialises the delay between weapon attacks
-    self.pickupRange = 150 #initialises the player's pickup pickup range
     self.money = 0 #initialises how much money the player has
 
+    # add itself to the sprite group for updating
+    allSprites.add(self)
+
+    # create tank gun
+    self.tank_gun = TankGun(self, crosshair.rect, "tank_gun")
 
   def move(self):
     # makes movement ignore fps
     dt = clock.get_time()/1000
-    env.outputForDebugging("Delta time: "+str(dt))
+    # env.outputForDebugging("Delta time: "+str(dt))
 
     self.speedx = 0 # initiates speed variables for each direction
     self.speedy = 0
@@ -103,11 +133,10 @@ class Player(pygame.sprite.Sprite):
     self.rect.x += self.speedx*dt # moves player position by speed
     self.rect.y += self.speedy*dt
 
-
   def shoot(self):
     if (pygame.time.get_ticks() - self.initialShotTime) >= self.shotCooldown: #determines whether the cooldown for shooting is over
       self.initialShotTime = pygame.time.get_ticks() #sets how long ago the last bullet was fired
-      bullet = Bullet(self.rect.center, crosshair.rect) #initialises a new bullet object at the player's location
+      bullet = Bullet(self.rect.center, crosshair.rect, self.pierce) #initialises a new bullet object at the player's location
       audio_assets["tank_shoot"].play()
       playerBullets.add(bullet) #adds the bullet to a list of player bullets, used for detecting collision with enemies
       allSprites.add(bullet) #adds the bullet to the list of all existing sprites, used for updating sprites each tick
@@ -130,6 +159,7 @@ class Player(pygame.sprite.Sprite):
         audio_assets["tank_hit"].play()
 
   def update(self):
+    super().update() #makes sure the player cannot leave the bounds of the map
     if ticksPaused != 0: #prevent pause abuse to remove shot cooldown
       self.initialShotTime += ticksPaused
     self.move()
@@ -139,24 +169,14 @@ class Player(pygame.sprite.Sprite):
       self.image = pygame.transform.scale(img_assets["tank_base_iframes"], (50,50))
     if (pygame.time.get_ticks() - self.iticksStart) >= self.iticks: #resets iframes when over
       self.iticks = 0
-
-    if self.rect.right > WIDTH: #makes sure the player cannot leave the bounds of the map
-      self.rect.right = WIDTH
-    if self.rect.left < 0:
-      self.rect.left = 0
-    if self.rect.bottom > HEIGHT:
-      self.rect.bottom = HEIGHT
-    if self.rect.top < 0:
-      self.rect.top = 0
     
     if self.shooting == True:
       self.shoot()
     
-
-class Tank_Gun(pygame.sprite.Sprite):
-  def __init__(self, parent): 
+class TankGun(pygame.sprite.Sprite):
+  def __init__(self, parent, target: pygame.rect.Rect, imageName: str="tank_gun"): 
     pygame.sprite.Sprite.__init__(self)
-    self.image = pygame.transform.smoothscale(img_assets["tank_gun"], (66, 32))
+    self.image = pygame.transform.smoothscale(img_assets[imageName], (66, 32))
     #self.rect = pygame.Rect((parent.rect.centerx, parent.rect.centery),(32,32))
     self.rect = self.image.get_rect()
     #self.image.set_colorkey()
@@ -164,19 +184,24 @@ class Tank_Gun(pygame.sprite.Sprite):
     self.rect.centery = parent.rect.centery
     self.parent = parent
     self.originalImage = self.image
+    # set target to point at
+    self.target = target
+
+    # add itself to sprite group for updating
+    allSprites.add(self)
   
-  def rotate(self, type="player"):
+  def rotate(self):
     pos = self.parent.rect.center
     self.image = self.originalImage
     pivotPos = (self.image.get_size()[0]-16, self.image.get_size()[1]-16)
 
     #calculates the angle of rotation
-    if crosshair.rect.centerx-self.rect.centerx == 0: #prevents division by zero
-      xChange = crosshair.rect.centerx-self.rect.centerx+1
+    if self.target.centerx-self.rect.centerx == 0: #prevents division by zero
+      xChange = self.target.centerx-self.rect.centerx+1
     else:
-      xChange = crosshair.rect.centerx-self.rect.centerx
-    rotation = math.atan(((HEIGHT-crosshair.rect.centery)-(HEIGHT-self.rect.centery))/(xChange))*(180/math.pi) #calculates the rotation needed to face the tank
-    if crosshair.rect.centerx < self.rect.centerx:
+      xChange = self.target.centerx-self.rect.centerx
+    rotation = math.atan(((HEIGHT-self.target.centery)-(HEIGHT-self.rect.centery))/(xChange))*(180/math.pi) #calculates the rotation needed to face the tank
+    if self.target.centerx < self.rect.centerx:
       rotation += 180 #corrects rotation if the crosshair is on the left-hand side of the bullet
     rotation += 180 #corrects rotation
 
@@ -203,12 +228,15 @@ class Tank_Gun(pygame.sprite.Sprite):
   
   def update(self):
     #resets image to original appearance
-    if self.parent.iticks == 0: #changes appearance to indicate invincibility
-      self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun"], (66, 32)) # type: ignore
-      self.image = self.originalImage
-    else:
-      self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun_iframes"], (66, 32))
-      self.image = self.originalImage
+    # only works for players
+    if hasattr(self.parent, "iticks"):
+      if self.parent.iticks == 0: #changes appearance to indicate invincibility
+        self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun"], (66, 32)) # type: ignore
+        self.image = self.originalImage
+      elif self.parent.iticks:
+        self.originalImage = pygame.transform.smoothscale(img_assets["tank_gun_iframes"], (66, 32))
+        self.image = self.originalImage
+    
     self.rect.centerx = self.parent.rect.centerx-17 #offsets appearance relative to base
     self.rect.centery = self.parent.rect.centery
     self.rotate() #sets image to rotated version
@@ -237,7 +265,7 @@ class Health_Container(pygame.sprite.Sprite):
 
 
 # generic enemy base class
-class Enemy(pygame.sprite.Sprite):
+class Enemy(PhysicsObject):
   def __init__(self, position, isSpawned=False, enemyType="soldier"): #define stats and enemyType
     pygame.sprite.Sprite.__init__(self)
 
@@ -252,6 +280,7 @@ class Enemy(pygame.sprite.Sprite):
     
     # applies image size override if applicable
     if "ImageSize" in myData:
+      env.outputForDebugging("Set image size for "+enemyType+" to "+str(myData["ImageSize"]))
       self.image = pygame.transform.smoothscale(img_assets[image], myData["ImageSize"])
     else:
       self.image = pygame.transform.smoothscale(img_assets[image])
@@ -262,8 +291,6 @@ class Enemy(pygame.sprite.Sprite):
     # sets radius for collision
     if "Radius" in myData:
       self.radius = myData["Radius"]
-    else:
-      self.radius = 1
     
     # initialises rect
     self.rect = self.image.get_rect()
@@ -273,11 +300,12 @@ class Enemy(pygame.sprite.Sprite):
     self.y = self.rect.centery
 
     # show debug hitbox
-    if DEBUG_MODE:
-      pygame.draw.circle(self.image, BLUE, (self.image.get_width() // 2, self.image.get_height() // 2), self.radius)
+    if DEBUG_MODE and hasattr(self, "radius"):
+      # pygame.draw.circle(self.image, BLUE, (self.image.get_width() // 2, self.image.get_height() // 2), self.radius)
+      pass
 
     # sets default image
-    self.baseImage = self.image
+    self.baseImage = self.image.copy()
 
     # setup stats
     self.speed = myData["Speed"] # enemy movement speed
@@ -329,27 +357,29 @@ class Enemy(pygame.sprite.Sprite):
     self.negXspeed = None
     self.negYspeed = None
 
+  # after spawn is prepared
+  def _spawnComplete(self):
+    #initialises spawn
+    self.image = self.baseImage
+    self.isSpawned = True
+    mobs.add(self)
+    bottomSprites.remove(self)
+    #allSprites.add(self)
+
   def prepareSpawn(self): #if not force spawned, create a spawn indicator
     self.image = pygame.transform.smoothscale(img_assets["unspawned_enemy"], (32, 32))
     if pygame.time.get_ticks() - self.initialTime >= 2000: #timer before spawning
       #initialises spawn
-      self.image = self.baseImage
-      self.isSpawned = True
-      mobs.add(self)
-      bottomSprites.remove(self)
-      #allSprites.add(self)
+      self._spawnComplete()
 
-  # move towards player
-  def move(self):
-    # makes movement ignore fps
-    dt = clock.get_time()/1000
-
+  def _getDirectionTo(self, player: Player):
     # move towards player by default
-    targetPos = tank_base.rect.center
+    targetPos = player.rect.center
 
     # draw line of movement
     if DEBUG_MODE:
-      pygame.draw.line(display, RED, (self.x, self.y), targetPos, 3)
+      # pygame.draw.line(display, RED, (self.x, self.y), targetPos, 3)
+      pass
 
     dx = targetPos[0] - self.x
     dy = targetPos[1] - self.y
@@ -358,6 +388,12 @@ class Enemy(pygame.sprite.Sprite):
     # adjust for proportion
     dx /= magnitude
     dy /= magnitude
+    
+    return dx, dy
+
+  def _moveInDirection(self, dx, dy):
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
 
     # apply speed
     self.xspeed = dx*self.speed
@@ -369,41 +405,75 @@ class Enemy(pygame.sprite.Sprite):
     self.rect.centerx = self.x
     self.rect.centery = self.y
 
+  # move directly towards player
+  def _directMovement(self):
+    # get direction towards player
+    dx, dy = self._getDirectionTo(tank_base)
+    
+    # move in direction
+    self._moveInDirection(dx, dy)
+
+  # for enemies with radii
+  def _circleCollision(self, otherEnemy):
+    dx = self.x - otherEnemy.x
+    dy = self.y - otherEnemy.y
+    magnitude = math.hypot(dx, dy)
+
+    # ignore magnitudes of 0 (to avoid crash)
+    if magnitude == 0:
+      return
+
+    if not hasattr(self, "radius"):
+      selfRadius = self.rect.width/2
+    else:
+      selfRadius = self.radius
+
+    if not hasattr(otherEnemy, "radius"):
+      otherEnemyRadius = otherEnemy.rect.width/2
+    else:
+      otherEnemyRadius = otherEnemy.radius
+
+    minDist = selfRadius + otherEnemyRadius # overlap distance
+
+    # enemies are colliding
+    if magnitude < minDist:
+      overlapDist = minDist-magnitude # amount to push back by
+
+      # normalise direction
+      dx /= magnitude
+      dy /= magnitude
+
+      # push them apart; cut in half so both enemies move equally
+      self.x += dx * overlapDist * 0.5
+      self.y += dy * overlapDist * 0.5
+      otherEnemy.x -= dx * overlapDist * 0.5
+      otherEnemy.y -= dy * overlapDist * 0.5
+
+      self.rect.center = (self.x, self.y)
+      otherEnemy.rect.center = (otherEnemy.x, otherEnemy.y)
+
+  # bounce off other enemies
+  def _collideWithEnemies(self):
     # collide with other enemies
     for otherEnemy in mobs:
       # ignore itself
       if otherEnemy == self:
         continue
       
-      dx = self.x - otherEnemy.x
-      dy = self.y - otherEnemy.y
-      magnitude = math.hypot(dx, dy)
-      minDist = self.radius + otherEnemy.radius # overlap distance
+      # # ignore rect enemies (like tank)
+      # if not hasattr(otherEnemy, "radius"):
+      #   continue
 
-      # enemies are colliding
-      if magnitude < minDist:
-        overlapDist = minDist-magnitude # amount to push back by
+      self._circleCollision(otherEnemy)
 
-        # normalise direction
-        dx /= magnitude
-        dy /= magnitude
-
-        # push them apart; cut in half so both enemies move equally
-        self.x += dx * overlapDist * 0.5
-        self.y += dy * overlapDist * 0.5
-        otherEnemy.x -= dx * overlapDist * 0.5
-        otherEnemy.y -= dy * overlapDist * 0.5
-
-        self.rect.center = (self.x, self.y)
-        otherEnemy.rect.center = (otherEnemy.x, otherEnemy.y)
-
-
-
-
+  # move towards player
+  def move(self):
+    self._directMovement()
+    self._collideWithEnemies()
 
   def rotate(self, targetRect: pygame.rect.Rect):
     #point towards player``
-    self.image = pygame.transform.smoothscale(self.baseImage, (32, 52))
+    self.image = self.baseImage.copy()
     if targetRect.centerx-self.rect.centerx == 0: #prevents division by zero
       self.xChange = targetRect.centerx-self.rect.centerx+1
     else:
@@ -447,6 +517,7 @@ class Enemy(pygame.sprite.Sprite):
 
   
   def update(self):
+    super().update()
     if ticksPaused != 0: #makes sure pausing doesn't insta-spawn them
       self.initialTime += ticksPaused
     if self.isSpawned == True:
@@ -454,6 +525,109 @@ class Enemy(pygame.sprite.Sprite):
       self.rotate(tank_base.rect)
     else:
       self.prepareSpawn()
+
+# stays away from player and fires bullets at them  
+class EnemyTank(Enemy):
+  def __init__(self, position, isSpawned=False, enemyType="soldier"):
+    super().__init__(position, isSpawned, enemyType)
+
+    # initialise shooting-related stats
+    self.shotCooldown = 600
+    self.initialShotTime = 200 #used for determining how long ago the last bullet was fired, reassigned each time
+    self.range = 750 # distance they go near to player for
+
+  def move(self):
+    # only move closer if more than their range away
+    targetPos = tank_base.rect
+    dx = targetPos[0] - self.x
+    dy = targetPos[1] - self.y
+    magnitude = math.hypot(dx, dy)
+
+    # tolerance in pixels where they do not move
+    TOLERANCE = 20
+
+    if magnitude > self.range:
+      self._directMovement()
+    elif magnitude < self.range-TOLERANCE:
+      # move away from player
+      dx, dy = self._getDirectionTo(tank_base)
+      self._moveInDirection(-dx, -dy)
+    self._collideWithEnemies()
+
+  # overwrite spawn complete to create tank gun
+  def _spawnComplete(self):
+    super()._spawnComplete()
+    # set up tank gun
+    self.tank_gun = TankGun(self, tank_base.rect, "enemy_tank_gun")
+
+
+  def tryDestroy(self, killedByPlayer: bool=False):
+    super().tryDestroy(killedByPlayer)
+
+    # also destroy gun
+    if self.health <= 0:
+      self.tank_gun.kill()
+  
+  # fires a bullet towards the player
+  def shoot(self):
+    if (pygame.time.get_ticks() - self.initialShotTime) >= self.shotCooldown: #determines whether the cooldown for shooting is over
+      self.initialShotTime = pygame.time.get_ticks() #sets how long ago the last bullet was fired
+      bullet = Bullet(self.rect.center, tank_base.rect, 0, "enemy_bullet") #initialises a new bullet object at the player's location
+      audio_assets["tank_shoot"].play()
+      mobs.add(bullet) # uses mob collision group to detect impact with player
+      allSprites.add(bullet) #adds the bullet to the list of all existing sprites, used for updating sprites each tick
+
+  def update(self):
+    PhysicsObject.update(self)
+    if ticksPaused != 0: #makes sure pausing doesn't insta-spawn them
+      self.initialTime += ticksPaused
+    if self.isSpawned == True:
+      self.move() #calls movement subroutinea
+      self.shoot() # fires towards player
+    else:
+      self.prepareSpawn()
+
+# accelerates and doesn't lose speed; used by ferret
+class SpeedsterEnemy(Enemy):
+  def _stayInBounds(self):
+    #keeps the object within bounds of the map
+    if self.rect.right > WIDTH:
+      self.x = WIDTH - self.rect.width/2
+      self.rect.centerx = self.x
+      self.xspeed = 0 # for ferret
+    if self.rect.left < 0:
+      self.x = 0 + self.rect.width/2
+      self.rect.centerx = self.x
+      self.xspeed = 0 # for ferret
+    if self.rect.bottom > HEIGHT:
+      self.y = HEIGHT - self.rect.height/2
+      self.rect.centery = self.y
+      self.yspeed = 0 # for ferret
+    if self.rect.top < 0:
+      self.y = 0 + self.rect.height/2
+      self.rect.centery = self.y
+      self.yspeed = 0 # for ferret
+
+  def _moveInDirection(self, dx, dy):
+    # makes movement ignore fps
+    dt = clock.get_time()/1000
+
+    # apply speed; only difference is that this is += instead of =
+    self.xspeed += dx*self.speed
+    self.yspeed += dy*self.speed
+
+    # make sure it does not exceed max speed
+    max_speed = self.speed*1000
+    self.xspeed = min(max_speed, self.xspeed)
+    self.xspeed = max(-max_speed, self.xspeed)
+    self.yspeed = min(max_speed, self.yspeed)
+    self.yspeed = max(-max_speed, self.yspeed)
+
+    # move at end of frame
+    self.x += self.xspeed*dt
+    self.y += self.yspeed*dt #separate non-rounded x/y values used
+    self.rect.centerx = self.x
+    self.rect.centery = self.y
 
 # generic pickup base class
 class Pickup(pygame.sprite.Sprite):
@@ -478,6 +652,9 @@ class Pickup(pygame.sprite.Sprite):
     self.rect.center = position
     self.x = self.rect.centerx
     self.y = self.rect.centery
+
+    # radius applied for collision detection
+    self.radius = self.rect.width
 
     # pickup stats
     self.value = value # value of pickup
@@ -573,9 +750,9 @@ class Coin(Pickup):
     self.kill()
 
 class Bullet(pygame.sprite.Sprite):
-  def __init__(self, position, targetRect: pygame.rect.Rect, pierce=0):
+  def __init__(self, position, targetRect: pygame.rect.Rect, pierce=0, imageName: str="bullet"):
     pygame.sprite.Sprite.__init__(self)
-    self.image = pygame.transform.scale(img_assets["bullet"], (28, 14)) #sets image
+    self.image = pygame.transform.scale(img_assets[imageName], (28, 14)) #sets image
     self.rect = self.image.get_rect()
     self.radius = 8 #sets size of bullet
 
@@ -619,7 +796,7 @@ class Bullet(pygame.sprite.Sprite):
     self.y += self.yspeed/55*3.6
 
     #points towards crosshair
-    self.image = pygame.transform.scale(img_assets["bullet"], (28, 13))
+    self.image = pygame.transform.scale(img_assets[imageName], (28, 13))
     # self.image.set_colorkey("WHITE")
     if targetRect.centerx-self.x != 0:
       self.rotation = math.atan(((HEIGHT-targetRect.centery)-(HEIGHT-self.y))/(targetRect.centerx-self.x))*(180/math.pi) # calculates the rotation needed to face the tank
@@ -628,6 +805,7 @@ class Bullet(pygame.sprite.Sprite):
       self.image = pygame.transform.rotate(self.image, self.rotation) # moves visuals
     #self.initialTime = pygame.time.get_ticks()
     self.pierce = pierce # how many enemies a bullet can hit
+    self.damage = 1 # damage bullet deals
 
   def move(self):
     # makes movement ignore fps
@@ -639,7 +817,7 @@ class Bullet(pygame.sprite.Sprite):
     self.rect.centerx = self.x
     self.rect.centery = self.y
 
-  def tryDestroy(self):
+  def tryDestroy(self, hitByPlayer=False): # extra arg only for bullets hitting bullets
     # destroys self if hit too many enemies
     if self.pierce > 0:
       self.pierce -= 1
@@ -666,9 +844,8 @@ class Bullet(pygame.sprite.Sprite):
 mobs = pygame.sprite.Group()
 playerBullets = pygame.sprite.Group()
 pickups = pygame.sprite.Group()
-tank_base = Player()
-tank_gun = Tank_Gun(tank_base)
 crosshair = ui.Cursor((25,25), 10, img_assets["crosshair"], {"Transparency": 1})
+tank_base = Player()
 health_container = Health_Container("container")
 health_container_inner = Health_Container("inner") 
 # shopBase = ui.Frame((0,0), (500,500), 1, {"Colour": (255,0,0)}, {"Thickness": 10, "Transparency": 0.3})
@@ -682,34 +859,79 @@ def evilFunc():
 
 funnyButton = ui.DetailedButton((200, 200), (200, 100), buttonFunc, {"Text": {"Text": "sigma button?"}, "Image": img_assets["soldier"]}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
 evilButton = ui.TextButton((750, 200), (200, 100), evilFunc, {"Text": "heheheh", "Size": 50}, 2, {"Colour": (255,0,0)}, {"Thickness": 10})
-allSprites.add(tank_base, tank_gun)
 
 pygame.mixer.music.play(loops=-1) #infinitely loops the BGM
 score = 0 #initialises the score variable, which is updated with score increases
 paused = False #initialises the variable for whether the game is paused
 pauseInitialTime = -1 #sets the initial pause time (less than 0 so it's never higher than the current time)
 ticksPaused = 0 #tracks how long the game was paused for
-lastSpawnTime = 0 #time since last enemy spawned
 
-# Subroutines
-def spawn_enemies(lastSpawnTime=0):
-  def spawn_soldiers():
+# game helper functions
+# gets random item from a weighted pool
+def weightedRandom(weightedPool: dict):
+  totalWeight = 0
+  for enemy in weightedPool:
+    totalWeight += weightedPool[enemy]
+  roll = random.randint(1, totalWeight)
+  # go through enemies again and pick enemy that roll landed on
+  totalWeight = 0
+  for enemy in weightedPool:
+    totalWeight += weightedPool[enemy]
+    # roll lands within enemy's weight range
+    if totalWeight >= roll:
+      return enemy
+
+
+
+spawnPool = {
+  "soldier": enemy_data.enemies["soldier"]["SpawnWeight"] 
+} # all enemies that are currently spawnable
+def spawn_enemies():  
+  BASE_SPAWN_CHANCE = 0.02
+  # increase spawn chance with score
+  spawn_chance = BASE_SPAWN_CHANCE
+  spawn_chance += spawn_chance*score/1000
+
+  if random.random() < spawn_chance:
+    # pick enemy to spawn using weighted system
+    enemy = weightedRandom(spawnPool)
+    # load enemy's data for its cluster size
+    myData = enemy_data.enemies[enemy] 
+    #spawns enemies in clusters close together
     xpos = random.randint(0, WIDTH) #generates 'centre' of enemy cluster
     ypos = random.randint(0, HEIGHT)
-    for x in range(1, random.randint(2, 7)):
-      newXpos = random.randint(max(0, xpos - 100), min(WIDTH, xpos + 100))
-      newYpos = random.randint(max(0, ypos - 100), min(HEIGHT, ypos + 100))
-      m = Enemy((newXpos, newYpos)) #spawns enemies in clusters close together
-      bottomSprites.add(m)
-      #mobs.add(m)
+    VARIATION = 100 # random spread from positions
+    # increase max cluster size with score
+    max_cluster_size = myData["MaxClusterSize"]
+    max_cluster_size += max_cluster_size*score/1000
+    max_cluster_size = int(max_cluster_size)
+
+    cluster_size = random.randint(myData["MinClusterSize"], max_cluster_size)
+    for _ in range(cluster_size):
+      newXpos = random.randint(max(0, xpos - VARIATION), min(WIDTH, xpos + VARIATION))
+      newYpos = random.randint(max(0, ypos - VARIATION), min(HEIGHT, ypos + VARIATION))
+      place_object((newXpos, newYpos), enemy)
+
+# checks whether the score threshold has been met to unlock any new enemies
+oldScore = 0
+def check_score_enemies():
+  global oldScore
+  # only check if score changed
+  if score == oldScore:
+    return
   
-  if random.randint(1, 150) == 5:
-    #spawn_soldiers()
-    lastSpawnTime = pygame.time.get_ticks()
-  elif (pygame.time.get_ticks() - lastSpawnTime) >= 7500:
-    spawn_soldiers()
-    lastSpawnTime = pygame.time.get_ticks()
-  return lastSpawnTime
+  oldScore = score # update old score
+
+  for enemy in enemy_data.enemies:
+    # enemy must not already be spawned
+    if enemy in spawnPool:
+      continue
+
+    # adds enemy to spawn pool
+    if enemy_data.enemies[enemy]["SpawningScore"] <= score:
+      env.outputForDebugging("Added "+enemy+" to spawn pool")
+      spawnPool[enemy] = enemy_data.enemies[enemy]["SpawnWeight"]
+
 
 def spawn_loot():
     if random.randint(1,5000) == 5:
@@ -729,18 +951,47 @@ def place_object(position, type):
     object = HealthPickup(position, False, "health") 
     bottomSprites.add(object)
   else:
-    object = Enemy(position, False, type) 
+    myData = enemy_data.enemies[type]
+    # apply class override for special enemies:
+    if "Class" in myData:
+      myClass = globals()[myData["Class"]]
+    else:
+      myClass = Enemy
+    object = myClass(position, False, type) 
     bottomSprites.add(object)
+
+# custom function for detecting collision between a circle and rect
+def rectCircleCollide(rectSprite, circleSprite):
+  # use rect collision if not radius
+  if not hasattr(circleSprite, "radius"):
+    return pygame.sprite.collide_rect(rectSprite, circleSprite)
+
+  rect = rectSprite.rect
+  circle_center_x = circleSprite.x
+  circle_center_y = circleSprite.y
+  circle_radius = getattr(circleSprite, "radius")
+  
+
+  # Find the closest point on the rectangle to the center of the circle
+  closest_x = max(rect.left, min(circle_center_x, rect.right))
+  closest_y = max(rect.top, min(circle_center_y, rect.bottom))
+
+  # Calculate the distance between the closest point and the circle's center
+  distance_x = circle_center_x - closest_x
+  distance_y = circle_center_y - closest_y
+  distance_squared = (distance_x * distance_x) + (distance_y * distance_y)
+
+  # Check if the distance is less than the radius squared
+  # distance squared more performant than sqrt
+  return distance_squared < (circle_radius * circle_radius)
+
 
 def collisions():
   mobsHitByBullets = pygame.sprite.groupcollide(mobs, playerBullets, False, False, pygame.sprite.collide_circle)
-  # bulletsHitMobs = pygame.sprite.groupcollide(playerBullets, mobs, False, False, pygame.sprite.collide_circle)
-  mobsHitPlayer = pygame.sprite.spritecollide(tank_base, mobs, False, pygame.sprite.collide_circle)
-  playerTouchedPickup = pygame.sprite.spritecollide(tank_base, pickups, False, pygame.sprite.collide_circle)
-  #mobsTouchingMobs = pygame.sprite.groupcollide(mobs, mobs, False, False, pygame.sprite.collide_circle) #<- this collision system is both laggy and does not function properly
+  mobsHitPlayer = pygame.sprite.spritecollide(tank_base, mobs, False, rectCircleCollide)
+  playerTouchedPickup = pygame.sprite.spritecollide(tank_base, pickups, False, rectCircleCollide)
   for mob in mobsHitByBullets:
-    mob.tryDestroy(True)
-    # score += 5
+    mob.tryDestroy(True) # true: player damaged enemy
     # attempt to destroy all bullets
     bullets = mobsHitByBullets[mob]
     for bullet in bullets:
@@ -749,19 +1000,9 @@ def collisions():
   for mob in mobsHitPlayer:
     mob.tryDestroy()
     tank_base.tryDestroy(mob.damage)
+  
   for pickup in playerTouchedPickup:
-    if pickup.type == "health":
-      pickup.tryDestroy()
-    elif pickup.type == "coin":
-      pickup.tryDestroy()
-  #for mob in mobsTouchingMobs:
-  #  otherMobs = mobsTouchingMobs[mob]
-  #  if len(otherMobs) > 1:
-  #    for otherMob in otherMobs:
-  #      if (otherMob.x, otherMob.y) != (mob.x, mob.y): #does not count itself ;-;
-  #        if abs(otherMob.x-mob.x) < 25 and abs(otherMob.y-mob.y) < 25:
-  #          mob.collide((otherMob.x, otherMob.y))
-  # return score
+    pickup.tryDestroy()
 
 # shows the cooldown between shots
 def showCooldown():
@@ -868,6 +1109,21 @@ input_handler.bindToInput(
     lambda: place_object(pygame.mouse.get_pos(), "brute")
 )
 
+input_handler.bindToInput(
+    pygame.K_F5,
+    lambda: place_object(pygame.mouse.get_pos(), "tank")
+)
+
+input_handler.bindToInput(
+    pygame.K_F6,
+    lambda: place_object(pygame.mouse.get_pos(), "ferret")
+)
+
+input_handler.bindToInput(
+  pygame.K_F7,
+  lambda: setattr(tank_base, "pierce", tank_base.pierce + 1)
+)
+
 
 #Main program
 while env.running: #runs the game loop
@@ -882,17 +1138,18 @@ while env.running: #runs the game loop
       ticksPaused = pygame.time.get_ticks()-pauseInitialTime #sets how long the game was paused for
       pauseInitialTime = -1 #resets paused state
     clock.tick(FPS) #ticks the clock based on the set FPS
-    lastSpawnTime = spawn_enemies(lastSpawnTime)
+    spawn_enemies()
     spawn_loot()
     # score = collisions(score)
     bottomSprites.update()
     mobs.update()
     allSprites.update()
     topSprites.update()
+    # checks if any enemies can spawn now
+    check_score_enemies()
 
     # draws all to the screen
     drawAll()
-
     # collisions done after they are shown
     collisions()
     # show shot cooldown

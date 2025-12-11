@@ -1,0 +1,1 @@
+# stores all buyable items, their prices and their prerequisites
