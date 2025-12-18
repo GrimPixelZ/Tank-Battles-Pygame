@@ -30,7 +30,7 @@ enemies = {
     },
     "brute": {
         # stats
-        "Health": 4,
+        "Health": 3,
         "Damage": 2,
         "Speed": 165,
         "Score": 10,

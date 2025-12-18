@@ -10,8 +10,8 @@ import input_handler # for buttons
 display = env.display
 
 # Sprite groups
-allSprites = env.allSprites
-topSprites = env.topSprites
+allSprites = env.all_sprites
+topSprites = env.top_sprites
 
 # Custom types
 # Used for defining the colour and transparency of an object's fill
@@ -38,6 +38,8 @@ class TextData(typing.TypedDict):
 class ButtonData(typing.TypedDict):
     Image: pygame.Surface
     Text: TextData
+    ButtonDown: callable # functions run by button
+    ButtonUp: callable
 
 # Helper functions
 # Wraps text around so that it fits within constraints
@@ -165,6 +167,21 @@ def getText(text: TextData):
     }
     return newText
 
+# prevents erroring when reading data
+def get_button_data(button_data: ButtonData):
+    # makes sure it exists
+    if not button_data:
+        button_data = {}
+
+    text = None
+    if "Text" in button_data:
+        text = button_data["Text"]
+    
+    image = None
+    if "Image" in button_data:
+        image = button_data["Image"]
+    
+
 
 # Actual classes
 class Frame(pygame.sprite.Sprite):
@@ -243,13 +260,39 @@ class Cursor(ImageLabel):
 
 # Creates a button that turns grey when hovered over and triggers a function when activated
 class Button(Frame):
-    def __init__(self, position: tuple, size: tuple, func: callable, layer: int=1, background: Fill = None, outline: Outline = None):
+    def __init__(self, position: tuple, size: tuple, button_data: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
         super().__init__(position, size, layer, background, outline)
-        self.func = func # function run when button is pressed
+        button_data = get_button_data(button_data)
+
+        # setup text if applicable
+        if "Text" in button_data:
+            self._setup_text(button_data["Text"], outline)
+
         self._setupButton()
 
+    def _get_outline_thickness(self, outline: Outline):
+        # check if outline
+        if outline:
+            outlineThickness = outline["Thickness"]
+        else:
+            outlineThickness = 0
+        
+        return outlineThickness
+
+    # for creating text buttons with centred text
+    def _setup_text(self, textData: TextData, outline: Outline):
+        # get thickness of outline
+        outlineThickness = self._get_outline_thickness(outline)
+
+        # add text to button
+        y_offset = self.rect.height/2
+        if "Size" in textData:
+            y_offset -= textData["Size"]/2
+
+        TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
+
     # used for more effective inheritance
-    def _setupButton(self):
+    def _setup_button(self, button_data: ButtonData):
         # for becoming grey/not
         GREY_LEVEL = 100 # level of darkness to apply
 
@@ -265,17 +308,26 @@ class Button(Frame):
         # overlay dark layer with image
         self.greyImage.blit(darkEffect, (0, 0))
 
-        input_handler.bindToInput(1, self._activate, "keyup")
+        # bind button press events
+        if "ButtonDown" in button_data:
+            input_handler.bind_to_input(1, self._activate(button_data["ButtonDown"]), "keydown")
+        if "ButtonUp" in button_data:
+            input_handler.bind_to_input(1, self._activate(button_data["ButtonUp"]), "keyup")
     
-    def _activate(self):
+    def _activate(self, func: callable):
         # mouse must be touching button
         mousePos = pygame.mouse.get_pos()
         if not isPointInBounds(mousePos, (self.rect.x, self.rect.y), (self.rect.size)):
             return
 
+        # button must be visible
+        if not topSprites.has(self):
+            return
+
         # run bound function
-        self.func()
+        func()
         # play button sound
+
 
     def update(self):
         # get position and pressed state of mouse
@@ -289,50 +341,32 @@ class Button(Frame):
         # apply grey hover effect
         self.image = self.greyImage
 
-# Creates a button with centred text
-class TextButton(Button):
-    def __init__(self, position: tuple, size: tuple, func: callable, textData: TextData, layer: int=1, background: Fill = None, outline: Outline = None):
-        Frame.__init__(self, position, size, layer, background, outline)
-
-        # check if outline
-        if outline:
-            outlineThickness = outline["Thickness"]
-        else:
-            outlineThickness = 0
-
-        # add text to button
-        y_offset = self.rect.height/2
-        if "Size" in textData:
-            y_offset -= textData["Size"]/2
-
-        TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
-
-        self.func = func # function run when button is pressed
-        Button._setupButton(self)
-
 # Creates a button with a side image and text
 class DetailedButton(Button):
-    def __init__(self, position: tuple, size: tuple, func: callable, buttonData: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
-        Frame.__init__(self, position, size, layer, background, outline)
-
-        # check if outline
-        if outline:
-            outlineThickness = outline["Thickness"]
-        else:
-            outlineThickness = 0
+    def _setup_text(self, textData: TextData, outline: Outline):
+        # get outline thickness
+        outlineThickness = self._get_outline_thickness(outline)
 
         # add text to button
         x_offset = self.rect.width/3
         y_offset = self.rect.height/2
-        TextLabel._setupText(self, buttonData["Text"], x_offset+outlineThickness, y_offset-outlineThickness)
+        TextLabel._setupText(self, textData, x_offset+outlineThickness, y_offset-outlineThickness)
+
+    def _setup_image(self, image: pygame.image, outline: Outline):
+        # get outline thickness
+        outlineThickness = self._get_outline_thickness(outline)
 
         # add image to button
-        image = buttonData["Image"]
         imageSize = image.get_size()
+        x_offset = self.rect.width/3
         scale = x_offset/imageSize[0]
         imageSize = (imageSize[0]*scale, imageSize[1]*scale)
         imageSurface = pygame.transform.smoothscale(image, imageSize)
         self.image.blit(imageSurface, (outlineThickness,0))
 
-        self.func = func # function run when button is pressed
-        Button._setupButton(self)
+    def __init__(self, position: tuple, size: tuple, buttonData: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
+        Frame.__init__(self, position, size, layer, background, outline)
+
+
+
+        Button._setup_button(self, buttonData)
