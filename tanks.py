@@ -62,7 +62,7 @@ def place_pickup(type: str, position: tuple, value: int):
   bottom_sprites.add(pickup)
 
 # changes all pixels of given color in image; outsourced externally
-def recolour_image(image: pygame.image, target_colour: list, replacement_colour: list, tolerance: float=25):
+def recolour_image(image: pygame.image, target_colour: list, replacement_colour: list, tolerance: float=30):
   arr = pygame.surfarray.pixels3d(image)
     
   # Calculate color difference per pixel
@@ -161,7 +161,7 @@ class Player(PhysicsObject):
     b = player_colour[2]
     R_SHIFT = 53
     G_SHIFT = 29
-    B_SHIFT = 0
+    B_SHIFT = 30
     new_r = min(255, r+R_SHIFT)
     new_g = min(255, g+G_SHIFT)
     new_b = min(255, b+G_SHIFT)
@@ -301,6 +301,7 @@ class Player(PhysicsObject):
       else:
         all_sprites.remove(self)
         all_sprites.remove(self.tank_gun)
+        self.rect.center = (-5000, -5000) # position offscreen
   
   # removes any otherwise lingering remnants of last weapon
   def _deload_weapon(self):
@@ -437,7 +438,6 @@ class TankGun(pygame.sprite.Sprite):
     self.rotate() #sets image to rotated version
     #self.blit_rotate(display, self.image, (self.parent.rect.center), (self.image.get_size()[0]-16, self.image.get_size()[1]-16), self.rotation)
 
-
 class HealthContainer(pygame.sprite.Sprite):
   def __init__(self, type="container", player: Player=None):
     pygame.sprite.Sprite.__init__(self)
@@ -508,7 +508,7 @@ class Enemy(PhysicsObject):
     # set up recolours if applicable
     if "Recolour" in my_data:
       for recolour_data in my_data["Recolour"]:
-        recolour_image(self.image, recolour_data["TargetColour"], recolour_data["ReplacementColour"])
+        recolour_image(self.image, recolour_data["TargetColour"], recolour_data["ReplacementColour"], recolour_data["Tolerance"])
     # sets radius for collision
     if "Radius" in my_data:
       self.radius = my_data["Radius"]
@@ -871,6 +871,27 @@ class SpeedsterEnemy(Enemy):
     self.y += self.yspeed*dt #separate non-rounded x/y values used
     self.rect.centerx = self.x
     self.rect.centery = self.y
+
+# explodes on death
+class BomberEnemy(Enemy):
+  def try_destroy(self, killed_by_player=False):
+    super().try_destroy(killed_by_player)
+
+    # explode
+    if self.health <= 0:
+      AOE_RADIUS = 75
+      BOMB_DAMAGE = 3
+
+      self.radius = AOE_RADIUS
+
+      # get all hit players
+      for player in players:
+        if rect_circle_collide(player, self):
+          player.try_destroy(BOMB_DAMAGE)
+      
+      # play explosion sound!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 # generic pickup base class
 class Pickup(pygame.sprite.Sprite):
@@ -1670,6 +1691,11 @@ def bind_all_inputs():
   input_handler.bind_to_input(
     pygame.K_F10,
     lambda: place_object(pygame.mouse.get_pos(), "coin")
+  )
+
+  input_handler.bind_to_input(
+    pygame.K_F11,
+    lambda: place_object(pygame.mouse.get_pos(), "bomber")
   )
 
 bind_all_inputs()

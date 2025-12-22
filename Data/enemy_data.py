@@ -36,19 +36,13 @@ enemies = {
         "Score": 10,
         "Radius": 17, # for collisions
         # spawning
-        "SpawningScore": 200,
+        "SpawningScore": 150,
         "SpawnWeight": 15, # weighted spawn system
         "MinClusterSize": 1,
         "MaxClusterSize": 3, # how many can spawn in one cluster
         # visual overrides
         "Image": "brute",
         "ImageSize": (37, 59),
-        # "Recolour": [ # changes colour of enemy
-        #     {
-        #         "TargetColour": (255, 0, 0),
-        #         "ReplacementColour": (0,0,255)
-        #     }
-        # ],
         # loot drops
         "Loot": {
             "health": {
@@ -120,5 +114,42 @@ enemies = {
                 "Chance": 1
             },
         }
-    }
+    },
+    "bomber": {
+        # stats
+        "Health": 1,
+        "Damage": 0,
+        "Speed": 300,
+        "Score": 10,
+        "Radius": 15, # for collisions
+        # spawning
+        "SpawningScore": 300, # score enemy spawns at
+        "SpawnWeight": 20, # weighted spawn system
+        "MinClusterSize": 1,
+        "MaxClusterSize": 1, # how many can spawn in one cluster
+        "Class": "BomberEnemy",
+        # visual overrides
+        "Image": "bomber",
+        "ImageSize": (42, 52),
+        # "Recolour": [ # changes colour of enemy
+        #     {
+        #         "TargetColour": (255, 0, 0),
+        #         "ReplacementColour": (0,0,255),
+        #         "Tolerance": 150,
+        #     }
+        # ],
+        # loot drops
+        "Loot": {
+            "health": {
+                "Amount": 1,
+                "Value": [1],
+                "Chance": 0.02
+            },
+            "coin": {
+                "Amount": (1, 4),
+                "Value": (5, 10),
+                "Chance": 1
+            },
+        }
+    },
 }

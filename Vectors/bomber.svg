@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   width="82.516853"
+   height="104"
+   viewBox="0 0 82.516849 104"
+   id="svg5"
+   sodipodi:docname="bomber.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs5" />
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="7.8942308"
+     inkscape:cx="50.353228"
+     inkscape:cy="52"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g5" />
+  <g
+     transform="translate(-210.84536,-163.9375)"
+     id="g5">
+    <g
+       data-paper-data="{&quot;isPaintingLayer&quot;:true}"
+       fill-rule="nonzero"
+       stroke-linejoin="miter"
+       stroke-miterlimit="10"
+       stroke-dasharray="none"
+       stroke-dashoffset="0"
+       style="mix-blend-mode:normal"
+       id="g4">
+      <circle
+         style="mix-blend-mode:normal;fill:#800000;stroke:#000000;stroke-width:8;stroke-linejoin:round;stroke-dasharray:none"
+         id="path6"
+         cx="234.92331"
+         cy="215.05078"
+         r="20.077953" />
+      <path
+         d="m 284.63682,215.9375 c 0,14.285 -11.58029,25.86528 -25.86528,25.86528 -14.285,0 -25.86528,-11.58029 -25.86528,-25.86528 0,-14.285 11.58029,-25.86528 25.86528,-25.86528 14.285,0 25.86528,11.58029 25.86528,25.86528 z"
+         fill="#ff0000"
+         stroke="#000000"
+         stroke-width="8"
+         stroke-linecap="butt"
+         id="path1" />
+      <path
+         d="m 258.02542,243.54372 31.33679,20.39378"
+         fill="none"
+         stroke="#000000"
+         stroke-width="8"
+         stroke-linecap="round"
+         id="path2" />
+      <path
+         d="M 258.02542,188.33128 289.36221,167.9375"
+         data-paper-data="{&quot;index&quot;:null}"
+         fill="none"
+         stroke="#000000"
+         stroke-width="8"
+         stroke-linecap="round"
+         id="path3" />
+      <path
+         d="m 254.01256,221.62916 c 0,-2.79074 1.91522,-5.13414 4.50299,-5.78758 -1.29394,-1.0949 -2.11542,-2.73078 -2.11542,-4.55854 0,-3.29655 2.67236,-5.96891 5.96891,-5.96891 3.29655,0 5.96891,2.67236 5.96891,5.96891 0,2.79074 -1.91522,5.13414 -4.50303,5.78758 1.29394,1.0949 2.11546,2.73078 2.11546,4.55854 0,3.29655 -2.67236,5.96891 -5.96891,5.96891 -3.29655,0 -5.96891,-2.67236 -5.96891,-5.96891 z"
+         fill="#000000"
+         stroke="none"
+         stroke-width="0.5"
+         stroke-linecap="butt"
+         id="path4" />
+      <path
+         id="rect5"
+         style="fill:#5c5c5c;stroke:#000000;stroke-width:8;stroke-linejoin:round"
+         d="m 274.12915,219.42107 -2.15347,-14.06091 2.19223,13.88979 -7.38589,10.55845 z"
+         sodipodi:nodetypes="ccccc" />
+      <circle
+         style="fill:#ffffff;stroke:#000000;stroke-width:0;stroke-linejoin:round;stroke-dasharray:none"
+         id="path5"
+         cx="264.0585"
+         cy="211.8839"
+         r="1.8367844" />
+      <circle
+         style="mix-blend-mode:normal;fill:#ffffff;stroke:#000000;stroke-width:0;stroke-linejoin:round;stroke-dasharray:none"
+         id="path5-4"
+         cx="261.10236"
+         cy="222.31509"
+         r="1.8367844" />
+    </g>
+  </g>
+</svg>

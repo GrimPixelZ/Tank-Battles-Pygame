@@ -22,7 +22,7 @@ DEBUG_MODE = True
 current_debug_output = "" # shows on screen for debugging purposes
 
 # whether multiplayer is enabled
-MULTIPLAYER = False
+MULTIPLAYER = True
 player_count = 0 # number of players currently connected
 
 pygame.init() # initialises pygame
@@ -63,6 +63,7 @@ img_assets = {
   "enemy_tank_gun": None,
   "enemy_bullet": None,
   "ferret": None,
+  "bomber": None,
 
   # enemy/player
   "bullet": None,
