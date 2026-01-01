@@ -98,6 +98,7 @@ for key in audio_assets:
 DEFAULT_FONT = pygame.font.match_font('arial')
 
 ticks_paused = 0
+score = 0 #initialises the score variable, which is updated with score increases
 
 # helper functions
 def draw_text(surf, text, size, x, y):

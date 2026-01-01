@@ -185,8 +185,7 @@ def get_button_data(button_data: ButtonData):
 
 # Actual classes
 class Frame(pygame.sprite.Sprite):
-    def __init__(self, position: tuple, size: tuple, layer: int, fill: Fill = None, outline: Outline = None):
-        pygame.sprite.Sprite.__init__(self)
+    def _redraw(self, position: tuple, size: tuple, layer: int, fill: Fill = None, outline: Outline = None):
         self.rect = pygame.Rect(position[0], position[1], size[0], size[1])
         self.image = pygame.Surface(size, pygame.SRCALPHA)
 
@@ -209,6 +208,10 @@ class Frame(pygame.sprite.Sprite):
         a = fill["Transparency"]
         self.image.fill((r, g, b, a), outlineRect)
         self.visible = False
+
+    def __init__(self, position: tuple, size: tuple, layer: int, fill: Fill = None, outline: Outline = None):
+        pygame.sprite.Sprite.__init__(self)
+        self._redraw(position, size, layer, fill, outline)
         topSprites.add(self)
     
 
