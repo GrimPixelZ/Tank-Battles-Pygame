@@ -7,7 +7,7 @@ WIDTH = env.WIDTH
 HEIGHT = env.HEIGHT
 
 # changes all pixels of given color in image; outsourced externally
-def recolour_image(image: pygame.image, target_colour: list, replacement_colour: list, tolerance: float=30):
+def recolour_image(image: pygame.image, target_colour: list, replacement_colour: list, tolerance: float=50):
   arr = pygame.surfarray.pixels3d(image)
     
   # Calculate color difference per pixel

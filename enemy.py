@@ -188,12 +188,12 @@ class Enemy(generic.PhysicsObject):
       return
 
     if not hasattr(self, "radius"):
-      self_radius = self.rect.env.WIDTH/2
+      self_radius = self.rect.width/2
     else:
       self_radius = self.radius
 
     if not hasattr(other_enemy, "radius"):
-      other_enemy_radius = other_enemy.rect.env.WIDTH/2
+      other_enemy_radius = other_enemy.rect.width/2
     else:
       other_enemy_radius = other_enemy.radius
 
@@ -342,8 +342,8 @@ class EnemyTank(Enemy):
 
   def update(self):
     generic.PhysicsObject.update(self)
-    if env.env.ticks_paused != 0: #makes sure pausing doesn't insta-spawn them
-      self.initial_time += env.env.ticks_paused
+    if env.ticks_paused != 0: #makes sure pausing doesn't insta-spawn them
+      self.initial_time += env.ticks_paused
     if self.is_spawned == True:
       self.move() #calls movement subroutinea
       self.shoot() # fires towards player
@@ -355,19 +355,19 @@ class SpeedsterEnemy(Enemy):
   def _stay_in_bounds(self):
     #keeps the object within bounds of the map
     if self.rect.right > env.WIDTH:
-      self.x = env.WIDTH - self.rect.env.WIDTH/2
+      self.x = env.WIDTH - self.rect.width/2
       self.rect.centerx = self.x
       self.xspeed = 0 # for ferret
     if self.rect.left < 0:
-      self.x = 0 + self.rect.env.WIDTH/2
+      self.x = 0 + self.rect.width/2
       self.rect.centerx = self.x
       self.xspeed = 0 # for ferret
     if self.rect.bottom > env.HEIGHT:
-      self.y = env.HEIGHT - self.rect.env.HEIGHT/2
+      self.y = env.HEIGHT - self.rect.height/2
       self.rect.centery = self.y
       self.yspeed = 0 # for ferret
     if self.rect.top < 0:
-      self.y = 0 + self.rect.env.HEIGHT/2
+      self.y = 0 + self.rect.height/2
       self.rect.centery = self.y
       self.yspeed = 0 # for ferret
 

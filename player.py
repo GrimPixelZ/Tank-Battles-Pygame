@@ -64,8 +64,9 @@ class Player(generic.PhysicsObject):
     # setup starter weapon and tank gun
     self._setup_weapon("pellet")
 
-    # create health bar
+    # create health bar and money counter
     self.health_container = HealthContainer("container", self)
+    self.coin_counter = CoinCounter(self)
 
   # changes colour (for multiplayer) along with making iframes appearance
   def _apply_player_colouring(self, player_num: int):
@@ -149,15 +150,15 @@ class Player(generic.PhysicsObject):
       self.initial_shot_time = pygame.time.get_ticks() #sets how long ago the last bullet was fired
       direction = self.bullet_direction
       if not direction: # allow direction overrides (e.g. joycons)
-        self._create_bullet(crosshair.rect.center)
+        self._create_bullet(env.crosshair.rect.center)
       else:
         self._create_bullet_in_direction(direction[0], direction[1])
       # draw line for debugging
-      # pygame.draw.line(display, RED, (self.rect.centerx, self.rect.centery), crosshair.rect.center, 3)
+      # pygame.draw.line(display, RED, (self.rect.centerx, self.rect.centery), env.crosshair.rect.center, 3)
       # fire additional bullets (e.g. shotgun)
       if self.bullets > 1:
-        adjacent_length = crosshair.rect.centerx-self.rect.centerx
-        opposite_length = crosshair.rect.centery-self.rect.centery
+        adjacent_length = env.crosshair.rect.centerx-self.rect.centerx
+        opposite_length = env.crosshair.rect.centery-self.rect.centery
         if not direction:
           start_dir = math.atan2(opposite_length, adjacent_length) # must use atan2 to take signs into consideration
         else:
@@ -235,7 +236,7 @@ class Player(generic.PhysicsObject):
   # loads new weapon
   def _setup_weapon(self, weapon: str):
     # create new tank gun
-    self.tank_gun = TankGun(self, crosshair.rect, weapon)
+    self.tank_gun = TankGun(self, env.crosshair.rect, weapon)
 
     # load stats of weapon
     my_data = weapon_data.weapons[weapon]
@@ -312,7 +313,7 @@ class TankGun(pygame.sprite.Sprite):
         x_change = self.target.centerx-self.rect.centerx
       rotation = math.atan(((env.HEIGHT-self.target.centery)-(env.HEIGHT-self.rect.centery))/(x_change))*(180/math.pi) #calculates the rotation needed to face the tank
       if self.target.centerx < self.rect.centerx:
-        rotation += 180 #corrects rotation if the crosshair is on the left-hand side of the bullet
+        rotation += 180 #corrects rotation if the env.crosshair is on the left-hand side of the bullet
       rotation += 180 #corrects rotation
     else: # used by joycon
       rotation = math.atan2(self.direction[1], -self.direction[0])*(180/math.pi)
@@ -410,7 +411,6 @@ class HealthContainer(pygame.sprite.Sprite):
       self.rect.center = self.parent.rect.center
 
 
-
   def try_destroy(self, killed_by_player=False):
     super().try_destroy(killed_by_player)
 
@@ -427,6 +427,42 @@ class HealthContainer(pygame.sprite.Sprite):
           player.try_destroy(BOMB_DAMAGE)
       
       # play explosion sound!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+class CoinCounter(pygame.sprite.Sprite):
+    def __init__(self, player: Player=None):
+      super().__init__()
+      START_OFFSET = 5
+      HEALTH_WIDTH = 730/4
+      HEALTH_HEIGHT = 670/4
+
+      # save player to represent
+      self.player = player
+
+      # create blank image and rect
+      self.image = pygame.Surface((0,0))
+      self.rect = pygame.rect.Rect(0,0,0,0)
+
+      self.x = 0
+      self.y = 0
+
+      # shift by offset
+      self.x += START_OFFSET
+      self.x += HEALTH_WIDTH/2
+      self.y += START_OFFSET
+      self.y += HEALTH_HEIGHT
+
+      # shift along by player number
+      BASE_SHIFT = 200
+      shift = BASE_SHIFT * player.player_num
+      self.x += shift
+
+      # add to sprites for updating
+      env.top_sprites.add(self)
+    
+    def update(self):
+      text = "£"+str(self.player.money)
+      TEXT_SIZE = 25
+      env.draw_text(env.display, text, TEXT_SIZE, self.x, self.y)
 
 # generic bullet that moves in a straight line
 class PlayerBullet(pygame.sprite.Sprite):
@@ -460,11 +496,11 @@ class PlayerBullet(pygame.sprite.Sprite):
     self.x += self.xspeed/55*3.6
     self.y += self.yspeed/55*3.6
 
-    #points towards crosshair
+    #points towards env.crosshair
     if target_pos[0]-self.x != 0:
       self.rotation = math.atan(((env.HEIGHT-target_pos[1])-(env.HEIGHT-self.y))/(target_pos[0]-self.x))*(180/math.pi) # calculates the rotation needed to face the tank
       if target_pos[0] < self.x:
-        self.rotation = self.rotation+180 # corrects rotation if the crosshair is on the left-hand side of the bullet
+        self.rotation = self.rotation+180 # corrects rotation if the env.crosshair is on the left-hand side of the bullet
       self.image = pygame.transform.rotate(self.image, self.rotation) # moves visuals
 
     self.pierce = pierce # how many enemies a bullet can hit
@@ -532,8 +568,6 @@ class PlayerBullet(pygame.sprite.Sprite):
     if self.rect.left > env.WIDTH:
       self.kill()
 
-# initialise cursor
-crosshair = ui.Cursor((25,25), 10, img_assets["crosshair"], {"Transparency": 1})
 
 # shows the cooldown between shots
 def show_cooldown():
@@ -549,8 +583,8 @@ def show_cooldown():
       return
 
     # get position to draw at
-    x = crosshair.rect.centerx
-    y = crosshair.rect.centery + 16
+    x = env.crosshair.rect.centerx
+    y = env.crosshair.rect.centery + 16
 
     # draw a cooldown bar
     bar_height = 5

@@ -12,14 +12,6 @@ keyup_functions = {
   # pygame.key: [function, function]
 }
 
-offsets = {
-    "keydown": {
-        # pygame.key: [(int, offset(int))]
-    },
-    "keyup": {
-    },
-}
-
 # stores all active joysticks
 joysticks = []
 
@@ -94,10 +86,6 @@ def handle_inputs():
         _run_bound_functions(event.axis, bound_keys)
         
 
-# initialises the offset
-def _init_offset(key: pygame.key, keydown_or_keyup="keydown"):
-    offsets[keydown_or_keyup][key] = []
-
 # gets corresponding var for input type
 def _get_variable(keydown_or_keyup: str):
     # assign to appropriate input type
@@ -135,49 +123,19 @@ def bind_to_input(key: pygame.key, func: callable, keydown_or_keyup="keydown"):
     else:
         target_functions[key] = []
         target_functions[key].append(func)
-        _init_offset(key, keydown_or_keyup)
     
-    idx = len(target_functions[key])-1
-    # print("Would return", idx, "for", key)
-    # shift idx by offset (so it remains accurate)
-    offset = _get_offset(key, idx, keydown_or_keyup)
-    idx -= offset
-
-    # print("Returning", idx, "for", key)
-    return idx
-
-def _get_offset(key: pygame.key, idx: int, keydown_or_keyup="keydown"):
-     # get offset (from previously removed idx)
-    offset_list = offsets[keydown_or_keyup][key]
-    target_offset = 0 # offset to use
-    for offset_tuple in offset_list:
-        if offset_tuple[0] >= idx:
-            break
-        target_offset = offset_tuple[1]
-    return target_offset
+    return func
 
 # unbinds a function from an input
-def unbind_input(key: pygame.key, idx: int, keydown_or_keyup="keydown"):
-    # get offset (from previously removed idx)
-    offset_list = offsets[keydown_or_keyup][key]
-    target_offset = _get_offset(key, idx, keydown_or_keyup)
-    new_idx = idx + target_offset
-    # offset the offsets due to item getting removed
-    target_idx = 0 # gets index to insert at
-    insert_new = True # whether to create new offset
-    for offset_idx, offset_tuple in enumerate(offset_list):
-        if offset_tuple[0] > idx:
-            offset_list[offset_idx] -= 1
-        elif offset_tuple[0] == idx: # exact idx found, do not insert new
-            insert_new = False
-            offset_list[offset_idx] = (idx, offset_tuple[1]-1)
-        else:
-            target_idx = offset_idx
-    if insert_new:
-        offset_list.insert(target_idx, (idx, -1))
-    # remove the item from the list
+def unbind_input(key: pygame.key, func: callable, keydown_or_keyup="keydown"):
+    # use appropriate input type
     target_functions = _get_variable(keydown_or_keyup)
-    target_functions[key].pop(new_idx)
+    func_list = target_functions[key]
+
+    # remove all instances of bound function
+    for idx, stored_func in enumerate(func_list):
+        if stored_func == func:
+            func_list.pop(idx)
 
 # binds to initialising a controller
 def bind_to_joystick_init(func: callable):
@@ -195,3 +153,8 @@ def bind_to_joystick_input(key: int, func: callable, controller_id: int=0, event
 
     bound_functions.append(func)
 
+def unbind_all_inputs():
+    global keydown_functions, keyup_functions, joystick_functions
+    keydown_functions = {}
+    keyup_functions = {}
+    joystick_functions = {}

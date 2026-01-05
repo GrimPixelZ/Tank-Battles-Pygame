@@ -2,6 +2,9 @@
 import pygame
 import os
 
+# import save data handler
+import save_handler
+
 # whether game is running
 running = True
 
@@ -38,6 +41,7 @@ pygame.display.set_caption("Tank Battles") #sets the window title
 game_folder = os.path.dirname(__file__)
 img_folder = os.path.join(game_folder, "Assets")
 audio_folder = os.path.join(game_folder, "Audio")
+font_folder = os.path.join(game_folder, "Fonts")
 
 #assign background music and its volume
 background_music = pygame.mixer.music.load(os.path.join(audio_folder, "accion.mp3"))
@@ -54,6 +58,7 @@ img_assets = {
   "crosshair": None,
   "health_container": None,
   "health_container_inner": None,
+  "tick": None,
 
   # enemies
   "soldier": None,
@@ -86,6 +91,8 @@ audio_assets = {
   "kill": 0.4,
   "heal": 0.5,
   "coin": 0.25,
+  # ui
+  "button": 0.5,
 }
 
 # load all sound assets
@@ -93,12 +100,24 @@ for key in audio_assets:
   sound = pygame.mixer.Sound(os.path.join(audio_folder, key+".mp3"))
   sound.set_volume(audio_assets[key])
   audio_assets[key] = sound
-  
 
-DEFAULT_FONT = pygame.font.match_font('arial')
+font_assets = {
+  "connection": None,
+  "grand9k_pixel": None,
+}
+
+# load all font assets
+for key in font_assets:
+  font_assets[key] = os.path.join(font_folder, key+".ttf")
+
+# DEFAULT_FONT = pygame.font.match_font('arial')
+DEFAULT_FONT = font_assets["grand9k_pixel"]
 
 ticks_paused = 0
 score = 0 #initialises the score variable, which is updated with score increases
+
+# load high score
+high_score = int(save_handler.save_data["high_score"])
 
 # helper functions
 def draw_text(surf, text, size, x, y):
@@ -114,6 +133,11 @@ def output_for_debugging(text):
       return
 
    current_debug_output = text
+
+def update_high_score(score: int):
+  global high_score
+  high_score = score
+  save_handler.save_data["high_score"] = score
 
 # for scaling with framerate
 def get_deltatime():

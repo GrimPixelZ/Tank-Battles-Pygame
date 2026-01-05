@@ -123,8 +123,9 @@ enemies = {
         "Score": 10,
         "Radius": 15, # for collisions
         # spawning
-        "SpawningScore": 300, # score enemy spawns at
-        "SpawnWeight": 20, # weighted spawn system
+        # "SpawningScore": 300, # score enemy spawns at
+        "SpawningScore": 9999999,
+        "SpawnWeight": 10, # weighted spawn system
         "MinClusterSize": 1,
         "MaxClusterSize": 1, # how many can spawn in one cluster
         "Class": "BomberEnemy",

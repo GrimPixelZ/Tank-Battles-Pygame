@@ -135,10 +135,9 @@ def getText(text: TextData):
     if "Colour" in text:
         colour = text["Colour"]
 
-    fontName = "arial"
+    fontName = env.DEFAULT_FONT
     if "Font" in text:
         fontName = text["Font"]
-    fontName = pygame.font.match_font(fontName)
 
     size = 20
     if "Size" in text:
@@ -168,19 +167,33 @@ def getText(text: TextData):
     return newText
 
 # prevents erroring when reading data
+def pass_func():
+    print("PASSINg")
+    pass
+
 def get_button_data(button_data: ButtonData):
     # makes sure it exists
     if not button_data:
         button_data = {}
+    
+    new_button_data = {}
 
-    text = None
     if "Text" in button_data:
-        text = button_data["Text"]
+        new_button_data["Text"] = button_data["Text"]
     
-    image = None
     if "Image" in button_data:
-        image = button_data["Image"]
+        new_button_data["Image"] = button_data["Image"]
+
+    if "ButtonDown" in button_data:
+        button_down_func = button_data["ButtonDown"]
+        new_button_data["ButtonDown"] = button_down_func
+
+    if "ButtonUp" in button_data:
+        button_up_func = button_data["ButtonUp"]
+        new_button_data["ButtonUp"] = button_up_func
+
     
+    return new_button_data
 
 
 # Actual classes
@@ -194,8 +207,8 @@ class Frame(pygame.sprite.Sprite):
 
         # Calculate outline to be applied, if applicable
         outlineRect = None
-        if outline:
-            outline = getOutline(outline)
+        self.outline = outline
+        if outline["Thickness"] > 0:
             thickness = outline["Thickness"]
             outlineRect = pygame.Rect(thickness, thickness, size[0]-2*thickness, size[1]-2*thickness)
             r, g, b = outline["Colour"]
@@ -203,7 +216,7 @@ class Frame(pygame.sprite.Sprite):
             self.image.fill((r,g,b,a))
 
         # Fill rect (excluding outline) with fill colour
-        fill = getFill(fill)
+        self.fill = fill
         r, g, b = fill["Colour"]
         a = fill["Transparency"]
         self.image.fill((r, g, b, a), outlineRect)
@@ -211,8 +224,12 @@ class Frame(pygame.sprite.Sprite):
 
     def __init__(self, position: tuple, size: tuple, layer: int, fill: Fill = None, outline: Outline = None):
         pygame.sprite.Sprite.__init__(self)
-        self._redraw(position, size, layer, fill, outline)
+        self._redraw(position, size, layer, getFill(fill), getOutline(outline))
         topSprites.add(self)
+    
+    # for removing the ui element
+    def try_destroy(self):
+        self.kill()
     
 
 # Renders text placed onto a frame
@@ -263,6 +280,52 @@ class Cursor(ImageLabel):
 
 # Creates a button that turns grey when hovered over and triggers a function when activated
 class Button(Frame):
+    # used to setup appearance of button
+    def _setup_image(self, button_data: ButtonData):
+        # load image (if applicable)
+        if "Image" in button_data:
+            new_image = button_data["Image"]
+            # do not attempt to fill on outline 
+            outline_thickness = 0
+            if self.outline["Thickness"] > 0:
+                outline_thickness = self.outline["Thickness"]
+            # create rect to fill with
+            rect_width = self.rect.width - outline_thickness*2
+            rect_height = self.rect.height - outline_thickness*2
+            new_image = pygame.transform.scale(new_image, (rect_width, rect_height))
+            self.image.blit(new_image, (outline_thickness, outline_thickness))
+
+        # for becoming grey/not
+        GREY_LEVEL = 100 # level of darkness to apply
+
+        # create black layer
+        darkEffect = pygame.Surface(self.image.get_size())
+        darkEffect.fill((0,0,0))
+        darkEffect.set_alpha(GREY_LEVEL)
+
+        #copy image
+        self.baseImage = self.image.copy()
+        self.greyImage = self.image.copy()
+
+        # overlay dark layer with image
+        self.greyImage.blit(darkEffect, (0, 0))
+
+    # used for more effective inheritance
+    def _setup_button(self, button_data: ButtonData):
+        self._setup_image(button_data)
+
+        # bind button press events and store keys for later
+        self.stored_keys = {} # for unbinding when deleted
+        if "ButtonDown" in button_data:
+            def func():
+                self._activate(button_data["ButtonDown"])
+            self.stored_keys["keydown"] = input_handler.bind_to_input(1, func, "keydown")
+        if "ButtonUp" in button_data:
+            def func():
+                self._activate(button_data["ButtonUp"])
+            self.stored_keys["keyup"] = input_handler.bind_to_input(1, func, "keyup")
+    
+
     def __init__(self, position: tuple, size: tuple, button_data: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
         super().__init__(position, size, layer, background, outline)
         button_data = get_button_data(button_data)
@@ -271,7 +334,7 @@ class Button(Frame):
         if "Text" in button_data:
             self._setup_text(button_data["Text"], outline)
 
-        self._setupButton()
+        self._setup_button(button_data)
 
     def _get_outline_thickness(self, outline: Outline):
         # check if outline
@@ -294,29 +357,6 @@ class Button(Frame):
 
         TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
 
-    # used for more effective inheritance
-    def _setup_button(self, button_data: ButtonData):
-        # for becoming grey/not
-        GREY_LEVEL = 100 # level of darkness to apply
-
-        # create black layer
-        darkEffect = pygame.Surface(self.image.get_size())
-        darkEffect.fill((0,0,0))
-        darkEffect.set_alpha(GREY_LEVEL)
-
-        #copy image
-        self.baseImage = self.image.copy()
-        self.greyImage = self.image.copy()
-
-        # overlay dark layer with image
-        self.greyImage.blit(darkEffect, (0, 0))
-
-        # bind button press events
-        if "ButtonDown" in button_data:
-            input_handler.bind_to_input(1, self._activate(button_data["ButtonDown"]), "keydown")
-        if "ButtonUp" in button_data:
-            input_handler.bind_to_input(1, self._activate(button_data["ButtonUp"]), "keyup")
-    
     def _activate(self, func: callable):
         # mouse must be touching button
         mousePos = pygame.mouse.get_pos()
@@ -330,7 +370,7 @@ class Button(Frame):
         # run bound function
         func()
         # play button sound
-
+        env.audio_assets["button"].play()
 
     def update(self):
         # get position and pressed state of mouse
@@ -343,6 +383,21 @@ class Button(Frame):
 
         # apply grey hover effect
         self.image = self.greyImage
+    
+    def try_destroy(self):
+        super().try_destroy()
+
+        # unbind all inputs
+        for key in self.stored_keys:
+            input_handler.unbind_input(1, self.stored_keys[key], key)
+
+    def set_image(self, image: pygame.Surface | None):
+        super()._redraw(self.rect.topleft, self.rect.size, self._layer, self.fill, self.outline)
+        if image:
+            self._setup_image({"Image": image})
+        else:
+            self._setup_image({})
+        
 
 # Creates a button with a side image and text
 class DetailedButton(Button):
@@ -369,7 +424,5 @@ class DetailedButton(Button):
 
     def __init__(self, position: tuple, size: tuple, buttonData: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
         Frame.__init__(self, position, size, layer, background, outline)
-
-
 
         Button._setup_button(self, buttonData)
