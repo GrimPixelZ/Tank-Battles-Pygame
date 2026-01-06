@@ -40,6 +40,8 @@ class ButtonData(typing.TypedDict):
     Text: TextData
     ButtonDown: callable # functions run by button
     ButtonUp: callable
+    XClamp: int
+    YClamp: int
 
 # Helper functions
 # Wraps text around so that it fits within constraints
@@ -171,30 +173,6 @@ def pass_func():
     print("PASSINg")
     pass
 
-def get_button_data(button_data: ButtonData):
-    # makes sure it exists
-    if not button_data:
-        button_data = {}
-    
-    new_button_data = {}
-
-    if "Text" in button_data:
-        new_button_data["Text"] = button_data["Text"]
-    
-    if "Image" in button_data:
-        new_button_data["Image"] = button_data["Image"]
-
-    if "ButtonDown" in button_data:
-        button_down_func = button_data["ButtonDown"]
-        new_button_data["ButtonDown"] = button_down_func
-
-    if "ButtonUp" in button_data:
-        button_up_func = button_data["ButtonUp"]
-        new_button_data["ButtonUp"] = button_up_func
-
-    
-    return new_button_data
-
 
 # Actual classes
 class Frame(pygame.sprite.Sprite):
@@ -220,7 +198,6 @@ class Frame(pygame.sprite.Sprite):
         r, g, b = fill["Colour"]
         a = fill["Transparency"]
         self.image.fill((r, g, b, a), outlineRect)
-        self.visible = False
 
     def __init__(self, position: tuple, size: tuple, layer: int, fill: Fill = None, outline: Outline = None):
         pygame.sprite.Sprite.__init__(self)
@@ -280,6 +257,41 @@ class Cursor(ImageLabel):
 
 # Creates a button that turns grey when hovered over and triggers a function when activated
 class Button(Frame):
+    def get_button_data(button_data: ButtonData):
+        # makes sure it exists
+        if not button_data:
+            button_data = {}
+        
+        new_button_data = {}
+
+        if "Text" in button_data:
+            new_button_data["Text"] = button_data["Text"]
+        
+        if "Image" in button_data:
+            new_button_data["Image"] = button_data["Image"]
+
+        if "ButtonDown" in button_data:
+            button_down_func = button_data["ButtonDown"]
+            new_button_data["ButtonDown"] = button_down_func
+
+        if "ButtonUp" in button_data:
+            button_up_func = button_data["ButtonUp"]
+            new_button_data["ButtonUp"] = button_up_func
+        
+        # for draggable buttons
+        y_clamp = 500
+        if "YClamp" in button_data:
+            y_clamp = button_data["YClamp"]
+        new_button_data["YClamp"] = y_clamp
+
+        x_clamp = 500
+        if "XClamp" in button_data:
+            x_clamp = button_data["XClamp"]
+        new_button_data["XClamp"] = x_clamp
+
+        
+        return new_button_data
+
     # used to setup appearance of button
     def _setup_image(self, button_data: ButtonData):
         # load image (if applicable)
@@ -310,10 +322,8 @@ class Button(Frame):
         # overlay dark layer with image
         self.greyImage.blit(darkEffect, (0, 0))
 
-    # used for more effective inheritance
-    def _setup_button(self, button_data: ButtonData):
-        self._setup_image(button_data)
-
+    # binds functions for button activation
+    def _bind_actions(self, button_data: ButtonData):
         # bind button press events and store keys for later
         self.stored_keys = {} # for unbinding when deleted
         if "ButtonDown" in button_data:
@@ -324,11 +334,18 @@ class Button(Frame):
             def func():
                 self._activate(button_data["ButtonUp"])
             self.stored_keys["keyup"] = input_handler.bind_to_input(1, func, "keyup")
+
+    # used for more effective inheritance
+    def _setup_button(self, button_data: ButtonData):
+        self._setup_image(button_data)
+
+        # bind button press events and store keys for later
+        self._bind_actions(button_data)
     
 
     def __init__(self, position: tuple, size: tuple, button_data: ButtonData, layer: int=1, background: Fill = None, outline: Outline = None):
         super().__init__(position, size, layer, background, outline)
-        button_data = get_button_data(button_data)
+        button_data = Button.get_button_data(button_data)
 
         # setup text if applicable
         if "Text" in button_data:
@@ -357,10 +374,15 @@ class Button(Frame):
 
         TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
 
+    def _is_mouse_in_button(self):
+        mousePos = pygame.mouse.get_pos()
+        if isPointInBounds(mousePos, (self.rect.x, self.rect.y), (self.rect.size)):
+            return True
+        return False
+
     def _activate(self, func: callable):
         # mouse must be touching button
-        mousePos = pygame.mouse.get_pos()
-        if not isPointInBounds(mousePos, (self.rect.x, self.rect.y), (self.rect.size)):
+        if not self._is_mouse_in_button():
             return
 
         # button must be visible
@@ -397,6 +419,12 @@ class Button(Frame):
             self._setup_image({"Image": image})
         else:
             self._setup_image({})
+    
+    def set_text(self, text: TextData | None):
+        super()._redraw(self.rect.topleft, self.rect.size, self._layer, self.fill, self.outline)
+        if text:
+            self._setup_text(text, self.outline)
+            self._setup_image({})
         
 
 # Creates a button with a side image and text
@@ -426,3 +454,60 @@ class DetailedButton(Button):
         Frame.__init__(self, position, size, layer, background, outline)
 
         Button._setup_button(self, buttonData)
+
+# Creates a button that can be dragged with the mouse cursor (for sliders)
+class DraggableButton(Button):
+    def __init__(self, position, size, button_data, layer = 1, background = None, outline = None):
+        super().__init__(position, size, button_data, layer, background, outline)
+        self.is_dragging = False
+        self.x = self.rect.centerx
+        self.y = self.rect.centery
+        # setup min and max x and y positions
+        button_data = Button.get_button_data(button_data)
+        x_clamp = button_data["XClamp"]
+        y_clamp = button_data["YClamp"]
+        self.min_x = self.x - x_clamp
+        self.max_x = self.x + x_clamp
+        self.min_y = self.y - y_clamp
+        self.max_y = self.y + y_clamp
+
+    # binds functions for button activation
+    def _bind_actions(self, button_data: ButtonData):
+        # bind button press events and store keys for later
+        self.stored_keys = {} # for unbinding when deleted
+        if "ButtonDown" in button_data:
+            def func():
+                self._activate(button_data["ButtonDown"])
+                if self._is_mouse_in_button():
+                    self.is_dragging = True
+            self.stored_keys["keydown"] = input_handler.bind_to_input(1, func, "keydown")
+        else:
+            def func():
+                if self._is_mouse_in_button():
+                    self.is_dragging = True
+            self.stored_keys["keydown"] = input_handler.bind_to_input(1, func, "keydown")
+        if "ButtonUp" in button_data:
+            def func():
+                self._activate(button_data["ButtonUp"])
+                self.is_dragging = False
+            self.stored_keys["keyup"] = input_handler.bind_to_input(1, func, "keyup")
+        else:
+            def func():
+                self.is_dragging = False
+            self.stored_keys["keyup"] = input_handler.bind_to_input(1, func, "keyup")
+    
+    def update(self):
+        # drag alongside mouse if being dragged
+        if self.is_dragging:
+            mouse_pos = pygame.mouse.get_pos()
+            new_x_pos = mouse_pos[0]
+            new_y_pos = mouse_pos[1]
+            # cannot exceed set clamps
+            new_x_pos = pygame.math.clamp(new_x_pos, self.min_x, self.max_x)
+            new_y_pos = pygame.math.clamp(new_y_pos, self.min_y, self.max_y)
+            # assign new position
+            self.x = new_x_pos
+            self.y = new_y_pos
+            self.rect.center = (new_x_pos, new_y_pos)
+
+        return super().update()

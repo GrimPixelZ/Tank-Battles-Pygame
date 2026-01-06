@@ -8,7 +8,7 @@ import save_handler
 # whether game is running
 running = True
 
-#values for window size
+#values for window size; updates dynamically with screen size
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 60 #frames per second
@@ -29,6 +29,9 @@ MULTIPLAYER = True
 player_count = 0 # number of players currently connected
 
 pygame.init() # initialises pygame
+# res = pygame.display.get_desktop_sizes()
+# WIDTH = res[0][0]
+# HEIGHT = res[0][1]
 pygame.mixer.init() # initialises audio 
 display = pygame.display.set_mode((WIDTH, HEIGHT)) # sets the pygame display
 clock = pygame.time.Clock() # sets the pygame clock (used for timer-based events)

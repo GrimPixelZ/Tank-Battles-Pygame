@@ -71,7 +71,8 @@ class Player(generic.PhysicsObject):
   # changes colour (for multiplayer) along with making iframes appearance
   def _apply_player_colouring(self, player_num: int):
     # get player colour
-    player_colour = PLAYER_COLOURS[player_num]
+    colour_idx = player_num % len(PLAYER_COLOURS)
+    player_colour = PLAYER_COLOURS[colour_idx]
 
     # if not player one, recolour self
     if player_num > 0:
@@ -377,7 +378,9 @@ class HealthContainer(pygame.sprite.Sprite):
       self.image = pygame.transform.smoothscale(img_assets["health_container_inner"], (self.WIDTH, self.HEIGHT))
       self.base_image = self.image.copy()
       if env.MULTIPLAYER:
-        generic.recolour_image(self.base_image, (255, 99, 99), PLAYER_COLOURS[player.player_num])
+        colour_idx = player.player_num % len(PLAYER_COLOURS)
+        player_colour = PLAYER_COLOURS[colour_idx]
+        generic.recolour_image(self.base_image, (255, 99, 99), player_colour)
     self.rect = self.image.get_rect()
     self.rect.center = ((self.image.get_size()[0]/2+5, self.image.get_size()[1]/2+5))
     # shift along by player number
@@ -388,7 +391,7 @@ class HealthContainer(pygame.sprite.Sprite):
     self.player = player
 
     self.type = type
-    env.top_sprites.add(self)
+    env.bottom_sprites.add(self)
 
     if type == "container":
       health_container_inner = HealthContainer("inner", player) 

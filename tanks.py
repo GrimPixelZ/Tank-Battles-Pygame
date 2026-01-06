@@ -127,7 +127,6 @@ def initialise_main_menu():
   menu_objects.append(exit_button)
   # indicator for high score
   score = str(env.high_score)
-  print("SCORE IS", score)
   text = "High Score: "+score
   x_offset = 35*len(score)-35
   high_score_indicator = ui.TextLabel(
@@ -161,7 +160,6 @@ def end_game():
   # update high score if new record achieved
   if env.score > env.high_score:
     env.update_high_score(env.score)
-    print("Updated scor                                                                               e to", env.high_score)
     # also saves new score
     save_handler.update_save()
 
