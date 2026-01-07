@@ -1,11 +1,12 @@
 # used for the options screen
 import pygame
 # custom imports
-import ui, env, input_handler
+import ui, env, input_handler, mouse
 
 Y_PIXEL_STEP = 100 # gap between options
 LABEL_WIDTH = 600
 SLIDER_X_CLAMP = 300
+SLIDER_X_OFFSET = 200 # offset applied to slider buttons
 
 options = [] # holds all options
 options_count = 0 # number of options elements currently active
@@ -29,6 +30,7 @@ def _create_option_label(option_name: str, y_pos: int):
         background={"Transparency": 1}
     )
     options.append(text_label)
+    return text_label
 
 def create_toggle_option(option_name: str, toggle_func: callable, initial_state: bool=False):
     global options_count
@@ -85,18 +87,19 @@ def create_slider_option(option_name: str, slider_func: callable, slider_start: 
     global options_count
     y_offset = _get_y_offset()
 
-    _create_option_label(option_name, y_offset)
+    label = _create_option_label(option_name, y_offset)
+    text_width = label.text_width
 
     # precalculate slider button position
     SLIDER_HEIGHT = 50
     SLIDER_WIDTH = 100
-    button_pos = (500+2*SLIDER_X_CLAMP-SLIDER_WIDTH/2, y_offset+SLIDER_HEIGHT/2)
+    button_pos = (SLIDER_X_OFFSET+text_width+2*SLIDER_X_CLAMP-SLIDER_WIDTH/2, y_offset+SLIDER_HEIGHT/2)
     button_size = (SLIDER_WIDTH, SLIDER_HEIGHT)
 
     # create background of slider
     BACKGROUND_HEIGHT = 10
     slider_background = ui.Frame(
-        (500+SLIDER_X_CLAMP, button_pos[1]+SLIDER_HEIGHT/2-BACKGROUND_HEIGHT/2),
+        (SLIDER_X_OFFSET+text_width+SLIDER_X_CLAMP, button_pos[1]+SLIDER_HEIGHT/2-BACKGROUND_HEIGHT/2),
         (SLIDER_X_CLAMP*2, BACKGROUND_HEIGHT),
         0,
         {
@@ -211,6 +214,21 @@ def _set_volume(volume: float):
     volume /= 100
     pygame.mixer.music.set_volume(volume)
 
+def _set_game_speed(speed: float):
+    env.GAME_SPEED = speed/10
+
+def _set_godmode(state: bool):
+    env.GODMODE = state
+
+def _set_mouse_speed(speed: float):
+    mouse.change_mouse_speed(speed)
+
+def _set_screen_width(width: float):
+    env.WIDTH = width
+
+def _set_screen_height(height: float):
+    env.HEIGHT = height
+
 def initialise_options(return_func: callable=_close_game):
     global options
     # wrapper for return function
@@ -219,6 +237,7 @@ def initialise_options(return_func: callable=_close_game):
         for option in options:
             option.try_destroy()
         options_count = 0
+        mouse.clear_joystick_cursors()
         input_handler.unbind_all_inputs()
         return_func()
 
@@ -243,3 +262,20 @@ def initialise_options(return_func: callable=_close_game):
     # create_toggle_option("Music:", _toggle_music, music_on)
     create_slider_option("FPS:", _set_FPS, 15, 240, 5, env.FPS)
     create_slider_option("Music:", _set_volume, 0, 100, 1, volume*100)
+    create_slider_option("Joystick Mouse Speed:", _set_mouse_speed, 400, 2000, 50, mouse.mouse_speed)
+    # get maximum screen height and width of physical displays
+    screen_resolutions = pygame.display.get_desktop_sizes()
+    highest_width = 0
+    highest_height = 0
+    # account for multiple monitors
+    for resolution in screen_resolutions:
+        if resolution[0] > highest_width:
+            highest_width = resolution[0]
+        if resolution[1] > highest_height:
+            highest_height = resolution[1]
+    create_slider_option("Screen Width:", _set_screen_width, 500, highest_width, 10, env.WIDTH)
+    create_slider_option("Screen Height:", _set_screen_height, 500, highest_height, 10, env.HEIGHT)
+
+    if env.DEBUG_MODE:
+        create_slider_option("Speed:", _set_game_speed, 1, 50, 1, env.GAME_SPEED*10)
+        create_toggle_option("Godmode", _set_godmode, env.GODMODE)

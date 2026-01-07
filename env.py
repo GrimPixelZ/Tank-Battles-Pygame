@@ -13,6 +13,7 @@ WIDTH = 1920
 HEIGHT = 1080
 FPS = 60 #frames per second
 
+
 #predefined colours
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -23,9 +24,12 @@ BLUE = (0, 0, 255)
 # whether to show debug values etc
 DEBUG_MODE = True
 current_debug_output = "" # shows on screen for debugging purposes
+# debugging values
+GAME_SPEED = 1 # "speed" game runs at
+GODMODE = False # whether players can take damage
 
 # whether multiplayer is enabled
-MULTIPLAYER = True
+MULTIPLAYER = False
 player_count = 0 # number of players currently connected
 
 pygame.init() # initialises pygame
@@ -62,6 +66,7 @@ img_assets = {
   "health_container": None,
   "health_container_inner": None,
   "tick": None,
+  "cursor": None,
 
   # enemies
   "soldier": None,
@@ -103,6 +108,9 @@ for key in audio_assets:
   sound = pygame.mixer.Sound(os.path.join(audio_folder, key+".mp3"))
   sound.set_volume(audio_assets[key])
   audio_assets[key] = sound
+
+# increase max audio channels for synchronous sounds (default is 8)
+pygame.mixer.set_num_channels(24)
 
 font_assets = {
   "connection": None,
@@ -147,4 +155,6 @@ def get_deltatime():
   dt = clock.get_time()/1000
   # must account for time paused to avoid teleporting
   dt -= ticks_paused/1000
+  # apply game speed modifiers
+  dt *= GAME_SPEED
   return dt

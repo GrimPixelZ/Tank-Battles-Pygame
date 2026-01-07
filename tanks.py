@@ -3,7 +3,7 @@ import random
 import objgraph
 
 # custom modules
-import env, enemy, generic, ui, input_handler, misc, player as plr, save_handler, options
+import env, enemy, generic, ui, input_handler, misc, player as plr, save_handler, options, mouse
 
 # load enemy data
 from Data import enemy_data
@@ -16,7 +16,16 @@ pygame.mixer.music.set_volume(1)
 # runs every frame
 game_loop = None
 
-# create main menu
+# creates cursors for all controller players
+def create_joystick_cursors(*args):
+ # must have controllers connected
+ if len(input_handler.joysticks) == 0:
+   return
+ for idx, joystick in enumerate(input_handler.joysticks):
+      if env.MULTIPLAYER:
+        idx += 1 # controllers cannot be main player on multiplayer
+      mouse.PlayerCursor(plr.Player.get_player_colour(idx), idx)
+
 
 # runs every frame when the main menu is open
 def main_menu_loop():
@@ -34,7 +43,6 @@ def mid_game_loop():
     if pause_initial_time != -1:
       env.ticks_paused = pygame.time.get_ticks()-pause_initial_time #sets how long the game was paused for
       pause_initial_time = -1 #resets paused state
-    env.clock.tick(env.FPS) #ticks the env.clock based on the set env.FPS
     spawn_enemies()
     spawn_loot()
     # env.score = collisions(env.score)
@@ -82,12 +90,13 @@ def initialise_main_menu():
   )
   menu_objects.append(game_title)
 
-  # button for playing the game
   def close_menu():
     for obj in menu_objects:
       obj.try_destroy()
+    mouse.clear_joystick_cursors()
     input_handler.unbind_all_inputs()
   
+  # button for playing the game
   def play_func():
     close_menu()
     initialise_round()
@@ -104,6 +113,7 @@ def initialise_main_menu():
   def options_func():
     close_menu()
     options.initialise_options(initialise_main_menu)
+    create_joystick_cursors()
   options_button = ui.Button(
     (600, 600), 
     (735, 180), 
@@ -148,6 +158,12 @@ def initialise_main_menu():
     play_func
   )
 
+  # create console cursor if applicable
+  create_joystick_cursors()
+  # also work for joysticks initialised later
+  input_handler.bind_to_joystick_init(create_joystick_cursors)
+      
+
 # deloads the game and opens the menu
 def end_game():
   env.all_sprites.empty()
@@ -166,6 +182,7 @@ def end_game():
   env.score = 0
   pygame.mouse.set_visible(True)
   pygame.mixer.music.stop()
+  mouse.clear_joystick_cursors()
   input_handler.unbind_all_inputs()
   initialise_main_menu()
 
@@ -183,6 +200,15 @@ def initialise_round():
   pause_initial_time = -1 # <0 to indicate no pause to check for
   paused = False #initialises the variable for whether the game is paused
 
+  # initialise any joystick players who failed to join
+  if env.MULTIPLAYER:
+    for joystick in input_handler.joysticks:
+      setup_controller_player(joystick)
+  else:
+    # also initialise controller for singleplayer
+    if len(input_handler.joysticks) > 0:
+      bind_controller_inputs()
+
   input_handler.bind_to_joystick_init(setup_controller_player)
   bind_all_inputs()
 
@@ -191,7 +217,7 @@ def initialise_round():
 # set initial game loop
 initialise_main_menu()
 
-# game helper functions
+# game helper functionsind
 # gets random item from a weighted pool
 def weighted_random(weighted_pool: dict):
   total_weight = 0
@@ -329,7 +355,6 @@ def get_controller_axis_value(axis: int, player_num: int):
   axis_value = controller_axes[axis]
   return axis_value
 
-# used for trying to shoot with right trigger
 def try_right_trigger_shoot(player_num: int):
   axis_value = get_controller_axis_value(pygame.CONTROLLER_AXIS_TRIGGERRIGHT, player_num)
   player = get_player_by_num(player_num)
@@ -349,7 +374,7 @@ def controller_set_speed(axis: int, x_or_y: str, player_num: int):
 
 
 # for binding controllers to plr.players
-def bind_controller_inputs(joystick: pygame.joystick.Joystick, player_num: int=0):
+def bind_controller_inputs(joystick: pygame.joystick.Joystick=None, player_num: int=0):
   player = get_player_by_num(player_num)
   controller_id = max(player_num-1, 0)
 
@@ -360,7 +385,8 @@ def bind_controller_inputs(joystick: pygame.joystick.Joystick, player_num: int=0
   # toggle pause
   input_handler.bind_to_joystick_input(
       7, # waffle
-      lambda: globals().__setitem__("paused", not paused),
+      # lambda: globals().__setitem__("paused", not paused),
+      end_game,
       controller_id
   )
 
@@ -414,6 +440,7 @@ def bind_controller_inputs(joystick: pygame.joystick.Joystick, player_num: int=0
     controller_id
   )
 
+
 # runs when a controller is connected; creates player and binds their inputs
 def setup_controller_player(joystick: pygame.joystick.Joystick):
   if env.MULTIPLAYER:
@@ -424,17 +451,18 @@ def setup_controller_player(joystick: pygame.joystick.Joystick):
     bind_controller_inputs(joystick, 0)
 
 
-key1 = 0
-key2 = 0
 # bind all keybinds
 def bind_all_inputs():
-  global key1, key2
   # lambda works to "define" functions
   # stop the game running
   # input_handler.bind_to_input(
   #     pygame.K_ESCAPE,
   #     lambda: setattr(env, "running", False)
   # )
+  input_handler.bind_to_input(
+    pygame.K_ESCAPE,
+    end_game
+  )
 
   # toggle pause
   input_handler.bind_to_input(
@@ -580,83 +608,81 @@ def bind_all_inputs():
 
 
   # dev tools
-  key2 = input_handler.bind_to_input(
-      pygame.K_F1,
-      lambda: setattr(tank_base, "health", tank_base.health + 1)
-  )
+  if env.DEBUG_MODE:
+    input_handler.bind_to_input(
+        pygame.K_F1,
+        lambda: setattr(tank_base, "health", tank_base.health + 1)
+    )
 
-  input_handler.bind_to_input(
-      pygame.K_F2,
-      lambda: place_object(pygame.mouse.get_pos(), "health")
-  )
+    input_handler.bind_to_input(
+        pygame.K_F2,
+        lambda: place_object(pygame.mouse.get_pos(), "health")
+    )
 
-  input_handler.bind_to_input(
-      pygame.K_F3,
-      lambda: place_object(pygame.mouse.get_pos(), "soldier")
-  )
+    input_handler.bind_to_input(
+        pygame.K_F3,
+        lambda: place_object(pygame.mouse.get_pos(), "soldier")
+    )
 
-  input_handler.bind_to_input(
-      pygame.K_F4,
-      lambda: place_object(pygame.mouse.get_pos(), "brute")
-  )
+    input_handler.bind_to_input(
+        pygame.K_F4,
+        lambda: place_object(pygame.mouse.get_pos(), "brute")
+    )
 
-  input_handler.bind_to_input(
-      pygame.K_F5,
-      lambda: place_object(pygame.mouse.get_pos(), "tank")
-  )
+    input_handler.bind_to_input(
+        pygame.K_F5,
+        lambda: place_object(pygame.mouse.get_pos(), "tank")
+    )
 
-  input_handler.bind_to_input(
-      pygame.K_F6,
-      lambda: place_object(pygame.mouse.get_pos(), "ferret")
-  )
+    input_handler.bind_to_input(
+        pygame.K_F6,
+        lambda: place_object(pygame.mouse.get_pos(), "ferret")
+    )
 
-  input_handler.bind_to_input(
-    pygame.K_F7,
-    lambda: setattr(tank_base, "pierce", tank_base.pierce + 1)
-  )
+    input_handler.bind_to_input(
+      pygame.K_F7,
+      lambda: setattr(tank_base, "pierce", tank_base.pierce + 1)
+    )
 
-  input_handler.bind_to_input(
-    pygame.K_F8,
-    lambda: setattr(tank_base, "bullets", tank_base.bullets + 1)
-  )
+    input_handler.bind_to_input(
+      pygame.K_F8,
+      lambda: setattr(tank_base, "bullets", tank_base.bullets + 1)
+    )
 
-  def inc_score():
-    env.score += 10000
+    def inc_score():
+      env.score += 10000
 
-  input_handler.bind_to_input(
-    pygame.K_F9,
-    inc_score
-  )
+    input_handler.bind_to_input(
+      pygame.K_F9,
+      inc_score
+    )
 
-  input_handler.bind_to_input(
-    pygame.K_F10,
-    lambda: place_object(pygame.mouse.get_pos(), "coin")
-  )
+    input_handler.bind_to_input(
+      pygame.K_F10,
+      lambda: place_object(pygame.mouse.get_pos(), "coin")
+    )
 
-  def wrapper():
-    plr.Player()
+    def wrapper():
+      plr.Player()
 
-  input_handler.bind_to_input(
-    pygame.K_F11,
-    # lambda: place_object(pygame.mouse.get_pos(), "bomber")
-    wrapper
-  )
+    input_handler.bind_to_input(
+      pygame.K_F11,
+      # lambda: place_object(pygame.mouse.get_pos(), "bomber")
+      wrapper
+    )
 
   # for identifying memory leaks
   # def wrapper():
   #   print("Showing growth:")
   #   objgraph.show_growth(limit=30)
 
-  input_handler.bind_to_input(
-    pygame.K_ESCAPE,
-    end_game
-  )
-
 
 #main program
 while env.running: #runs the game loop
   # draw background
   env.display.fill(env.WHITE) 
+
+  env.clock.tick(env.FPS) #ticks the env.clock based on the set env.FPS
   
   # runs the current game loop
   game_loop()

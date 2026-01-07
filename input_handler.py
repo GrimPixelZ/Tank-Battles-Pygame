@@ -28,6 +28,8 @@ joystick_axis_movement = {
     # controller id: {axis: value}
 }
 
+mouse_pos = (0,0) # stores position of mouse from last click
+
 # checks if a key is being pressed down
 def _run_bound_functions(button, functions_list: dict):
     if button in functions_list:
@@ -37,6 +39,7 @@ def _run_bound_functions(button, functions_list: dict):
 
 # runs every frame, handles all bound events
 def handle_inputs():
+  global mouse_pos
 # handle all key presses
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
@@ -48,9 +51,11 @@ def handle_inputs():
     # special support for mouse buttons (numbered)
     elif event.type == pygame.MOUSEBUTTONDOWN:
         button = event.button 
+        mouse_pos = event.pos # save click position
         _run_bound_functions(button, keydown_functions)
     elif event.type == pygame.MOUSEBUTTONUP:
         button = event.button
+        mouse_pos = event.pos
         _run_bound_functions(button, keyup_functions)
     # removes controllers when they are disconnected
     elif event.type == pygame.JOYDEVICEREMOVED:
@@ -126,6 +131,22 @@ def bind_to_input(key: pygame.key, func: callable, keydown_or_keyup="keydown"):
     
     return func
 
+# binds an key to a function at an elevated priority (runs first)
+def bind_at_priority(key: pygame.key, func: callable, keydown_or_keyup="keydown"):
+    global keydown_functions, keyup_functions
+
+    # assign to appropriate input type
+    target_functions = _get_variable(keydown_or_keyup)
+
+    # creates new list if not present
+    if key in target_functions:
+        target_functions[key].insert(0, func)
+    else:
+        target_functions[key] = []
+        target_functions[key].insert(0, func)
+    
+    return func
+
 # unbinds a function from an input
 def unbind_input(key: pygame.key, func: callable, keydown_or_keyup="keydown"):
     # use appropriate input type
@@ -152,6 +173,21 @@ def bind_to_joystick_input(key: int, func: callable, controller_id: int=0, event
     bound_functions = _get_list(key, bound_keys)
 
     bound_functions.append(func)
+
+    return func
+
+# binds joystick input at an elevated priority (runs first)
+def bind_to_joystick_at_priority(key: int, func: callable, controller_id: int=0, event_type=pygame.JOYBUTTONDOWN):
+    global joystick_functions
+
+    # get list of existing bound functions or create new
+    event_types = _get_dict(controller_id, joystick_functions)
+    bound_keys = _get_dict(event_type, event_types)
+    bound_functions = _get_list(key, bound_keys)
+
+    bound_functions.insert(0, func)
+
+    return func
 
 def unbind_all_inputs():
     global keydown_functions, keyup_functions, joystick_functions

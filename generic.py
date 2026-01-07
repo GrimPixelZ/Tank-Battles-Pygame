@@ -3,9 +3,6 @@ import pygame, numpy
 # custom imports
 import env
 
-WIDTH = env.WIDTH
-HEIGHT = env.HEIGHT
-
 # changes all pixels of given color in image; outsourced externally
 def recolour_image(image: pygame.image, target_colour: list, replacement_colour: list, tolerance: float=50):
   arr = pygame.surfarray.pixels3d(image)
@@ -44,18 +41,19 @@ def rect_circle_collide(rect_sprite, circle_sprite):
   # distance squared more performant than sqrt
   return distance_squared < (circle_radius * circle_radius)
 
+
 # collides with walls, etc
 class PhysicsObject(pygame.sprite.Sprite):
   def _stay_in_bounds(self):
     #keeps the object within bounds of the map
-    if self.rect.right > WIDTH:
-      self.x = WIDTH - self.rect.width/2
+    if self.rect.right > env.WIDTH:
+      self.x = env.WIDTH - self.rect.width/2
       self.rect.centerx = self.x
     if self.rect.left < 0:
       self.x = 0 + self.rect.width/2
       self.rect.centerx = self.x
-    if self.rect.bottom > HEIGHT:
-      self.y = HEIGHT - self.rect.height/2
+    if self.rect.bottom > env.HEIGHT:
+      self.y = env.HEIGHT - self.rect.height/2
       self.rect.centery = self.y
     if self.rect.top < 0:
       self.y = 0 + self.rect.height/2

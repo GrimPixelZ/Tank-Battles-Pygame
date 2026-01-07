@@ -1,7 +1,7 @@
 # for ingame objects such as pickups
 import pygame, math
 # custom imports
-import env, player as plr, enemy
+import env, player as plr, enemy, sound
 from Data import pickup_data
 
 bottom_sprites = env.bottom_sprites
@@ -147,5 +147,5 @@ class HealthPickup(Pickup):
 class Coin(Pickup):
   def try_destroy(self):
     self.target.money += self.value
-    env.audio_assets["coin"].play()
+    sound.play_sound("coin")
     self.kill()

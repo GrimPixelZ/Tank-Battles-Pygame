@@ -1,6 +1,6 @@
 import pygame, random, math, copy
 # custom imports
-import env, generic, misc
+import env, generic, misc, sound
 import player as plr
 from Data import enemy_data
 
@@ -262,7 +262,7 @@ class Enemy(generic.PhysicsObject):
       if killed_by_player: #makes it not drop loot if player doesn't kill with gun
         LOOT_POSITION_VARIATION = 20
 
-        env.audio_assets["kill"].play()
+        sound.play_sound("kill")
         # increment score by score value
         env.score += self.score_value
 
@@ -334,7 +334,7 @@ class EnemyTank(Enemy):
     if (pygame.time.get_ticks() - self.initial_shot_time) >= self.shot_cooldown: #determines whether the cooldown for shooting is over
       self.initial_shot_time = pygame.time.get_ticks() #sets how long ago the last bullet was fired
       bullet = EnemyBullet(self.rect.center, self.target.rect.center, 0) #initialises a new bullet object at the player's location
-      env.audio_assets["tank_shoot"].play()
+      sound.play_sound("tank_shoot")
       # gives bullets collision with each other
       mobs.add(bullet) # uses mob collision group to detect impact with player
       env.all_sprites.add(bullet) #adds the bullet to the list of all existing sprites, used for updating sprites each tick

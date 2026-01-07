@@ -3,8 +3,8 @@ import pygame
 import typing
 
 # get globals
-import env
-import input_handler # for buttons
+import env, sound
+import input_handler, mouse # for buttons
 
 # Display for drawing onto
 display = env.display
@@ -231,10 +231,12 @@ class TextLabel(Frame):
             line_height = font.get_linesize()
             for line in lines:
                 surface = font.render(line, True, colour)
+                self.text_width = surface.get_width() # saved for external use (options dynamic offset)
                 self.image.blit(surface, (x_offset, y_offset))
                 y_offset += line_height
         else:
             surface = font.render(text["Text"], True, colour)
+            self.text_width = surface.get_width() # saved for external use (options dynamic offset)
             self.image.blit(surface, (0,starting_y_offset))
 
 # Renders an image stretched to fit the frame
@@ -375,7 +377,7 @@ class Button(Frame):
         TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
 
     def _is_mouse_in_button(self):
-        mousePos = pygame.mouse.get_pos()
+        mousePos = input_handler.mouse_pos
         if isPointInBounds(mousePos, (self.rect.x, self.rect.y), (self.rect.size)):
             return True
         return False
@@ -392,11 +394,11 @@ class Button(Frame):
         # run bound function
         func()
         # play button sound
-        env.audio_assets["button"].play()
+        sound.play_sound("button")
 
     def update(self):
         # get position and pressed state of mouse
-        mousePos = pygame.mouse.get_pos()
+        mousePos = mouse.get_nearest_pos(self.rect.center)
         # mouse inside button
         if not isPointInBounds(mousePos, (self.rect.x, self.rect.y), (self.rect.size)):
             # remove any grey effect once mouse leaves
@@ -499,7 +501,7 @@ class DraggableButton(Button):
     def update(self):
         # drag alongside mouse if being dragged
         if self.is_dragging:
-            mouse_pos = pygame.mouse.get_pos()
+            mouse_pos = mouse.get_nearest_pos(self.rect.center)
             new_x_pos = mouse_pos[0]
             new_y_pos = mouse_pos[1]
             # cannot exceed set clamps

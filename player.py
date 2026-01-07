@@ -1,7 +1,7 @@
 # for players and player-related objects
 import pygame, math
 # custom imports
-import env, generic, ui
+import env, generic, mouse, sound
 from Data import weapon_data
 
 img_assets = env.img_assets
@@ -68,11 +68,16 @@ class Player(generic.PhysicsObject):
     self.health_container = HealthContainer("container", self)
     self.coin_counter = CoinCounter(self)
 
-  # changes colour (for multiplayer) along with making iframes appearance
-  def _apply_player_colouring(self, player_num: int):
+  def get_player_colour(player_num: int):
     # get player colour
     colour_idx = player_num % len(PLAYER_COLOURS)
     player_colour = PLAYER_COLOURS[colour_idx]
+    return player_colour
+
+  # changes colour (for multiplayer) along with making iframes appearance
+  def _apply_player_colouring(self, player_num: int):
+    # get player colour
+    player_colour = Player.get_player_colour(player_num)
 
     # if not player one, recolour self
     if player_num > 0:
@@ -93,6 +98,18 @@ class Player(generic.PhysicsObject):
     new_b = min(255, b+G_SHIFT)
     iframes_colour = (new_r, new_g, new_b)
     generic.recolour_image(self.iframes_image, player_colour, iframes_colour)
+
+  # initialises the cursor for the player
+  def create_controller_cursor(self):
+    player_colour = Player.get_player_colour(self.player_num)
+    self.mouse = mouse.PlayerCursor(player_colour)
+  
+  # gets the player's mouse position
+  def get_mouse_pos(self):
+    if self.mouse:
+      return self.mouse.get_pos()
+    else:
+      return pygame.mouse.get_pos()
 
   # applies speed in a certain direction; used by inputs
   def apply_speed(self, axis: str, dir: int):
@@ -189,7 +206,7 @@ class Player(generic.PhysicsObject):
           self._create_bullet_in_direction(dx, dy)
 
       # play firing sound
-      env.audio_assets["tank_shoot"].play()
+      sound.play_sound("tank_shoot")
   
   # for changing aim direction
   def change_bullet_direction(self, axis: str, value: float):
@@ -212,18 +229,21 @@ class Player(generic.PhysicsObject):
     successful = True
     if self.health < self.max_health:
       self.health += value
-      env.audio_assets["heal"].play()
+      sound.play_sound("heal")
     else:
       successful = False
     return successful
   
   def try_destroy(self, damage):
     if self.iticks == 0:
+      if env.GODMODE:
+        return
+
       if self.health >= 1:
         self.health -= damage
         self.iticks = self.maxiticks
         self.iticks_start = pygame.time.get_ticks()
-        env.audio_assets["tank_hit"].play()
+        sound.play_sound("tank_hit")
       else:
         env.all_sprites.remove(self)
         env.all_sprites.remove(self.tank_gun)
@@ -299,6 +319,8 @@ class TankGun(pygame.sprite.Sprite):
 
     # add itself to sprite group for updating
     env.all_sprites.add(self)
+
+
   
   def rotate(self):
     pos = self.parent.rect.center
