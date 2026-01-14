@@ -62,7 +62,7 @@ enemies = {
         "Health": 3,
         "Damage": 1,
         "Speed": 200,
-        "Score": 15,
+        "Score": 20,
         # spawning
         "SpawningScore": 500,
         "SpawnWeight": 5,
@@ -81,7 +81,7 @@ enemies = {
             },
             "coin": {
                 "Amount": (1, 4),
-                "Value": (8, 15),
+                "Value": (15, 20),
                 "Chance": 1
             },
         }
@@ -91,12 +91,12 @@ enemies = {
         "Health": 2,
         "Damage": 1,
         "Speed": 20,
-        "Score": 15,
+        "Score": 20,
         # spawning
         "SpawningScore": 1000,
         "SpawnWeight": 10,
         "MinClusterSize": 1,
-        "MaxClusterSize": 2, # how many can spawn in one cluster
+        "MaxClusterSize": 1, # how many can spawn in one cluster
         "Class": "SpeedsterEnemy",
         # visual overrides
         "Image": "ferret",
@@ -110,7 +110,7 @@ enemies = {
             },
             "coin": {
                 "Amount": (1, 4),
-                "Value": (8, 15),
+                "Value": (15, 20),
                 "Chance": 1
             },
         }

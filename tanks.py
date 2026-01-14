@@ -3,7 +3,7 @@ import random
 import objgraph
 
 # custom modules
-import env, enemy, generic, ui, input_handler, misc, player as plr, save_handler, options, mouse
+import env, enemy, generic, ui, input_handler, misc, player as plr, save_handler, options, mouse, shop
 
 # load enemy data
 from Data import enemy_data
@@ -22,9 +22,9 @@ def create_joystick_cursors(*args):
  if len(input_handler.joysticks) == 0:
    return
  for idx, joystick in enumerate(input_handler.joysticks):
-      if env.MULTIPLAYER:
-        idx += 1 # controllers cannot be main player on multiplayer
-      mouse.PlayerCursor(plr.Player.get_player_colour(idx), idx)
+    if env.MULTIPLAYER:
+      idx += 1 # controllers cannot be main player on multiplayer
+    mouse.PlayerCursor(plr.Player.get_player_colour(idx), idx)
 
 
 # runs every frame when the main menu is open
@@ -35,9 +35,9 @@ def main_menu_loop():
 def mid_game_loop():
   global pause_initial_time
   #do not run if paused
-  if paused and pause_initial_time == -1: #checks whether the game is paused for the first time
+  if env.paused and pause_initial_time == -1: #checks whether the game is paused for the first time
     pause_initial_time = pygame.time.get_ticks() #sets the last time the game was paused
-  if not paused:
+  if not env.paused:
     if env.ticks_paused != 0: #resets variable for how long the game was paused for
       env.ticks_paused = 0
     if pause_initial_time != -1:
@@ -166,11 +166,18 @@ def initialise_main_menu():
 
 # deloads the game and opens the menu
 def end_game():
+  global spawn_pool
   env.all_sprites.empty()
   env.top_sprites.empty()
   env.bottom_sprites.empty()
   misc.pickups.empty()
   enemy.mobs.empty()
+  for player in shop.shop_objects:
+    for object in shop.shop_objects[player]:
+      object.try_destroy()
+  spawn_pool = {
+    "soldier": enemy_data.enemies["soldier"]["SpawnWeight"]
+  }
   plr.players.empty()
   plr.players_list = []
   # update high score if new record achieved
@@ -188,17 +195,16 @@ def end_game():
 
 # starts a game round
 tank_base = None
-paused = None
 pause_initial_time = None # <0 to indicate no pause to check for
 def initialise_round():
-  global tank_base, paused, game_loop, pause_initial_time
+  global tank_base, game_loop, pause_initial_time
   crosshair = ui.Cursor((25,25), 10, env.img_assets["crosshair"], {"Transparency": 1}) # initialise cursor
   env.crosshair = crosshair
   tank_base = plr.Player()
 
   pygame.mixer.music.play(loops=-1) #infinitely loops the bgm
   pause_initial_time = -1 # <0 to indicate no pause to check for
-  paused = False #initialises the variable for whether the game is paused
+  env.paused = False #initialises the variable for whether the game is paused
 
   # initialise any joystick players who failed to join
   if env.MULTIPLAYER:
@@ -372,6 +378,12 @@ def controller_set_speed(axis: int, x_or_y: str, player_num: int):
   else:
     player.set_speed(x_or_y, axis_value)
 
+# toggles the shop on or off
+def toggle_shop(player: plr.Player):
+  if player in shop.open and shop.open[player]:
+    shop.close_shop(player)
+  else:
+    shop.open_shop(player)
 
 # for binding controllers to plr.players
 def bind_controller_inputs(joystick: pygame.joystick.Joystick=None, player_num: int=0):
@@ -382,11 +394,17 @@ def bind_controller_inputs(joystick: pygame.joystick.Joystick=None, player_num: 
   #   # [id, key, keydown]
   # ]
 
-  # toggle pause
+  # exit to main menu
+  input_handler.bind_to_joystick_input(
+      6, # waffle
+      end_game,
+      controller_id
+  )
+
+  # open shop
   input_handler.bind_to_joystick_input(
       7, # waffle
-      # lambda: globals().__setitem__("paused", not paused),
-      end_game,
+      lambda: toggle_shop(player),
       controller_id
   )
 
@@ -467,7 +485,7 @@ def bind_all_inputs():
   # toggle pause
   input_handler.bind_to_input(
       pygame.K_p,
-      lambda: globals().__setitem__("paused", not paused)
+      lambda: env.globals().__setitem__("paused", not paused)
   )
 
   # start shooting when spacebar is pressed
@@ -659,11 +677,15 @@ def bind_all_inputs():
 
     input_handler.bind_to_input(
       pygame.K_F10,
-      lambda: place_object(pygame.mouse.get_pos(), "coin")
+      # lambda: place_object(pygame.mouse.get_pos(), "coin")
+      lambda: setattr(tank_base, "money", tank_base.money + 10000)
     )
 
     def wrapper():
-      plr.Player()
+      # plr.Player()
+      print("Showing growth:")
+      objgraph.show_growth(limit=30)
+
 
     input_handler.bind_to_input(
       pygame.K_F11,
@@ -671,10 +693,10 @@ def bind_all_inputs():
       wrapper
     )
 
-  # for identifying memory leaks
-  # def wrapper():
-  #   print("Showing growth:")
-  #   objgraph.show_growth(limit=30)
+    input_handler.bind_to_input(
+      pygame.K_F12,
+      lambda: toggle_shop(plr.players_list[0])
+    )
 
 
 #main program

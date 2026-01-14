@@ -62,3 +62,29 @@ class PhysicsObject(pygame.sprite.Sprite):
   def update(self):
     #keeps the object within bounds of the map
     self._stay_in_bounds()
+
+# fades out an object over time (e.g. bullets)
+
+class FadeOut(pygame.sprite.Sprite):
+  def __init__(self, surface: pygame.surface.Surface, alpha_per_sec: float):
+    super().__init__()
+    # create blank image and rect
+    self.image = pygame.Surface((0,0))
+    self.rect = pygame.rect.Rect(0,0,0,0)
+
+    self.target_surface = surface
+    self.alpha_per_sec = alpha_per_sec
+
+    # add to top sprites for updating
+    env.top_sprites.add(self)
+  
+  def update(self):
+    dt = env.get_deltatime()
+
+    current_alpha = self.target_surface.get_alpha()
+    new_alpha = current_alpha - dt * self.alpha_per_sec
+    self.target_surface.set_alpha(new_alpha)
+
+    # destroy after fade complete
+    if new_alpha <= 0:
+      self.kill()

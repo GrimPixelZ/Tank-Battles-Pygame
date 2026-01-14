@@ -33,6 +33,7 @@ class TextData(typing.TypedDict):
     Transparency: float
     Text: str
     TextWraps: bool
+    Alignment: str
 
 # Used for detailed buttons; defines image and text
 class ButtonData(typing.TypedDict):
@@ -144,6 +145,10 @@ def getText(text: TextData):
     size = 20
     if "Size" in text:
         size = text["Size"]
+
+    alignment = "centred"
+    if "Alignment" in text:
+        alignment = text["Alignment"].lower()
     
     font = pygame.font.Font(fontName, size)
 
@@ -165,6 +170,7 @@ def getText(text: TextData):
         "Colour": colour,
         "Transparency": transparency,
         "TextWraps": textWraps,
+        "Alignment": alignment,
     }
     return newText
 
@@ -220,6 +226,9 @@ class TextLabel(Frame):
         text = getText(text)
         font = text["Font"]
         colour = text["Colour"]
+
+        # offset by outline thickness
+        x_offset += self.outline["Thickness"]
 
         # wrap text or not
         if text["TextWraps"]:
@@ -370,9 +379,11 @@ class Button(Frame):
         outlineThickness = self._get_outline_thickness(outline)
 
         # add text to button
-        y_offset = self.rect.height/2
+        y_offset = 0
+        if textData.get("Alignment") == "centred":
+            y_offset = self.rect.height/2
         if "Size" in textData:
-            y_offset -= textData["Size"]/2
+            y_offset += textData["Size"]/2
 
         TextLabel._setupText(self, textData, outlineThickness, y_offset-outlineThickness)
 

@@ -8,10 +8,13 @@ img_assets = env.img_assets
 
 # player recolour options
 PLAYER_COLOURS = [
-  (102, 171, 255), # blue
-  (137, 205, 82), # green
-  (140, 0, 255), # purple
-  (0, 249, 255), # teal
+  (102, 171, 255), # basic blue
+  (137, 205, 82), # speed green
+  (140, 0, 255), # shield purple
+  (0, 249, 255), # sentry teal
+  (255, 226, 0), # trumpet yellow
+  (163, 154, 181), # wars grey
+  (255, 85, 0), # blobbo orange
 ]
 
 # create sprite groups for storing players
@@ -38,6 +41,7 @@ class Player(generic.PhysicsObject):
     self.max_health = 10 #sets the maximum health of the player
     self.shot_cooldown = 400 #initialises the delay between weapon attacks
     self.pierce = 0 # number of enemies bullets can pierce
+    self.range = -1 # distance bullets can travel; -1 is inf
     self.pickup_range = 150 #initialises the player's pickup pickup range
 
     # set initial states
@@ -49,7 +53,11 @@ class Player(generic.PhysicsObject):
     self.initial_shot_time = 200 #used for determining how long ago the last bullet was fired, reassigned each time
     self.bullet_direction = None # used to override bullet direction 
     self.money = 0 #initialises how much money the player has
-    self.unlocked_weapons = ["pellet", "minigun", "shotgun", "mega_shotgun"] # which weapons the player has unlocked
+    self.unlocked_weapons = ["pellet"] # which weapons the player has unlocked
+    self.weapon_stat_modifiers = {} # shop upgrades affecting any owned weapons
+    self.unlocked_upgrades = { # saves what upgrades player has bought
+      # slot idx: number of upgrades deep
+    }
     self.current_weapon = 0 # idx of current weapon
     # initial movement
     self.dx = 0
@@ -102,7 +110,8 @@ class Player(generic.PhysicsObject):
   # initialises the cursor for the player
   def create_controller_cursor(self):
     player_colour = Player.get_player_colour(self.player_num)
-    self.mouse = mouse.PlayerCursor(player_colour)
+    new_mouse = mouse.PlayerCursor(player_colour, self.player_num)
+    return new_mouse
   
   # gets the player's mouse position
   def get_mouse_pos(self):
@@ -147,7 +156,7 @@ class Player(generic.PhysicsObject):
     self.rect.y += y_speed*dt
   
   def _create_bullet(self, target_pos: tuple):
-    bullet = PlayerBullet(self.rect.center, target_pos, self.pierce) #initialises a new bullet object at the player's location
+    bullet = PlayerBullet(self.rect.center, target_pos, self.pierce, self.range) #initialises a new bullet object at the player's location
     player_bullets.add(bullet) #adds the bullet to a list of player bullets, used for detecting collision with enemies
     env.all_sprites.add(bullet) #adds the bullet to the list of all existing sprites, used for updating sprites each tick
 
@@ -224,7 +233,7 @@ class Player(generic.PhysicsObject):
     elif axis == "y":
       self.bullet_direction = (self.bullet_direction[0], value)
 
-
+  # for health pickups
   def add_health(self, value):
     successful = True
     if self.health < self.max_health:
@@ -267,6 +276,16 @@ class Player(generic.PhysicsObject):
     self.shot_cooldown = my_data["Cooldown"]
     self.bullets = my_data["Bullets"]
 
+  # applies all upgrades from a weapon to the player
+  def _apply_weapon_stat_modifiers(self, weapon_name: str):
+    if weapon_name in self.weapon_stat_modifiers:
+      stat_modifiers = self.weapon_stat_modifiers[weapon_name]
+      for stat_name in stat_modifiers:
+        stat_boost = stat_modifiers[stat_name]
+        current_stat = getattr(self, stat_name)
+        new_stat = current_stat + stat_boost
+        setattr(self, stat_name, new_stat)
+
   def switch_weapon(self, step: int=1):
     new_idx = self.current_weapon + step
     new_idx = pygame.math.clamp(new_idx, 0, len(self.unlocked_weapons)-1) # ensure value is within bounds
@@ -275,6 +294,42 @@ class Player(generic.PhysicsObject):
     self._deload_weapon()
     self._setup_weapon(current_weapon)
     self.current_weapon = new_idx
+
+    # apply any stat modifiers for the weapon (from shop upgrades)
+    self._apply_weapon_stat_modifiers(current_weapon)
+
+  # checks if a weapon is equipped
+  def is_equipped(self, weapon_name: str):
+    return weapon_name == self.unlocked_weapons[self.current_weapon]
+
+  # adds stat boosts to a preowned weapon
+  def add_stat_to_weapon(self, weapon_name: str, stat_name: str, stat_change: int):
+    # ensure weapon stat modifiers exist
+    if not weapon_name in self.weapon_stat_modifiers:
+      self.weapon_stat_modifiers[weapon_name] = {}
+    
+    if not stat_name in self.weapon_stat_modifiers[weapon_name]:
+      self.weapon_stat_modifiers[weapon_name][stat_name] = stat_change
+    else: # add onto existing stat if applicable
+      self.weapon_stat_modifiers[weapon_name][stat_name] += stat_change
+    
+    # apply any stat modifiers for the weapon if equipped (from shop upgrades)
+    if self.is_equipped(weapon_name):
+      self._apply_weapon_stat_modifiers(weapon_name)
+
+  # gives the player a weapon of a given type
+  def award_weapon(self, weapon_name: str):
+    self.unlocked_weapons.append(weapon_name)
+  
+  # increases the player's stats from shop upgrades
+  def add_stat(self, stat_name: str, stat_change: int):
+    current_stat = getattr(self, stat_name)
+    new_stat = current_stat + stat_change
+    setattr(self, stat_name, new_stat)
+  
+  # saves a given upgrade obtained from the shop
+  def save_upgrade(self, slot_idx: int, upgrade_level: int):
+    self.unlocked_upgrades[slot_idx] = upgrade_level
 
   def update(self):
     super().update() #makes sure the player cannot leave the bounds of the map
@@ -495,11 +550,19 @@ class PlayerBullet(pygame.sprite.Sprite):
   def _setup_image(self):
     self.image = pygame.transform.scale(img_assets["bullet"], (28, 14)) #sets image
 
-  def __init__(self, position, target_pos: tuple, pierce=0):
+  def __init__(self, position, target_pos: tuple, pierce=0, range=-1):
     pygame.sprite.Sprite.__init__(self)
     self._setup_image()
     self.rect = self.image.get_rect()
     self.radius = 8 #sets size of bullet
+    # default speed of bullet
+    self.speed = 880
+
+    # calculate time for bullet to despawn (if applicable)
+    if range == -1:
+      self.remaining_time = 9999
+    else:
+      self.remaining_time = range/self.speed
 
     #hide bullet offscreen
     self.rect.x = -100
@@ -510,8 +573,6 @@ class PlayerBullet(pygame.sprite.Sprite):
     self.y = position[1]-7
     
     #super high-tech calculate movement towards target code
-    self.speed = 880
-
     dx, dy = self._get_direction_to(target_pos)
 
     self.xspeed = dx * self.speed
@@ -592,6 +653,15 @@ class PlayerBullet(pygame.sprite.Sprite):
       self.kill()
     if self.rect.left > env.WIDTH:
       self.kill()
+    
+    # tick down remaining time
+    dt = env.get_deltatime()
+    self.remaining_time -= dt
+    if self.remaining_time <= 0.5:
+      # generic.FadeOut(self.image, 30)
+      # kill after duration ends
+      if self.remaining_time <= 0:
+        self.kill()
 
 
 # shows the cooldown between shots

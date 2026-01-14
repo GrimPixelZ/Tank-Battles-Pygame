@@ -13,7 +13,7 @@ weapons = {
     },
     "minigun": {
         "Pierce": 0,
-        "Range": 300,
+        "Range": 1000,
         "Cooldown": 100,
         "Bullets": 1,
         # visuals
@@ -23,7 +23,7 @@ weapons = {
     },
     "shotgun": {
         "Pierce": 0,
-        "Range": 200,
+        "Range": 400,
         "Cooldown": 600,
         "Bullets": 3,
         # visuals
@@ -34,8 +34,8 @@ weapons = {
     "mega_shotgun": {
         "Pierce": 0,
         "Range": 200,
-        "Cooldown": 600,
-        "Bullets": 21,
+        "Cooldown": 0,
+        "Bullets": 5,
         # visuals
         "Image": "minigun",
         "ImageSize": (107, 35),

@@ -30,6 +30,11 @@ joystick_axis_movement = {
 
 mouse_pos = (0,0) # stores position of mouse from last click
 
+# stores mouse positions relative to the player they are from (for detecting which player pressed a button)
+player_click_positions = {
+    # player_num: (mouse_pos)
+}
+
 # checks if a key is being pressed down
 def _run_bound_functions(button, functions_list: dict):
     if button in functions_list:
@@ -52,10 +57,20 @@ def handle_inputs():
     elif event.type == pygame.MOUSEBUTTONDOWN:
         button = event.button 
         mouse_pos = event.pos # save click position
+        # store player if applicable
+        player_num = 0 # if no player (e.g. builtin cursor) then default to playr 0
+        if hasattr(event, "player"):
+            player_num = event.player
+        player_click_positions[player_num] = mouse_pos
         _run_bound_functions(button, keydown_functions)
     elif event.type == pygame.MOUSEBUTTONUP:
         button = event.button
         mouse_pos = event.pos
+        # store player if applicable
+        player_num = 0 # if no player (e.g. builtin cursor) then default to playr 0
+        if hasattr(event, "player"):
+            player_num = event.player
+        player_click_positions[player_num] = mouse_pos
         _run_bound_functions(button, keyup_functions)
     # removes controllers when they are disconnected
     elif event.type == pygame.JOYDEVICEREMOVED:

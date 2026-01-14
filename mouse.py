@@ -179,7 +179,8 @@ class PlayerCursor(generic.PhysicsObject):
         mouse_down = pygame.event.Event(
             pygame.MOUSEBUTTONDOWN,
             button=1,
-            pos=self.get_pos()
+            pos=self.get_pos(),
+            player=self.player_num # pass in player who click belonged to
         )
 
         # tell pygame mouse was clicked
@@ -197,7 +198,8 @@ class PlayerCursor(generic.PhysicsObject):
         mouse_up = pygame.event.Event(
             pygame.MOUSEBUTTONUP,
             button=1,
-            pos=self.get_pos()
+            pos=self.get_pos(),
+            player=self.player_num
         )
 
         # tell pygame mouse was clicked

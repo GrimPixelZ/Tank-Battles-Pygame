@@ -101,6 +101,8 @@ audio_assets = {
   "coin": 0.25,
   # ui
   "button": 0.5,
+  "fail": 1,
+  "purchase": 1,
 }
 
 # load all sound assets
@@ -110,7 +112,8 @@ for key in audio_assets:
   audio_assets[key] = sound
 
 # increase max audio channels for synchronous sounds (default is 8)
-pygame.mixer.set_num_channels(24)
+MAX_SOUNDS = 128
+pygame.mixer.set_num_channels(MAX_SOUNDS)
 
 font_assets = {
   "connection": None,
@@ -124,6 +127,7 @@ for key in font_assets:
 # DEFAULT_FONT = pygame.font.match_font('arial')
 DEFAULT_FONT = font_assets["grand9k_pixel"]
 
+paused = False # whether the game is paused or not (intended for mid-round usage)
 ticks_paused = 0
 score = 0 #initialises the score variable, which is updated with score increases
 
@@ -155,6 +159,8 @@ def get_deltatime():
   dt = clock.get_time()/1000
   # must account for time paused to avoid teleporting
   dt -= ticks_paused/1000
+  # ensure dt is above 0
+  dt = max(0, dt)
   # apply game speed modifiers
   dt *= GAME_SPEED
   return dt
