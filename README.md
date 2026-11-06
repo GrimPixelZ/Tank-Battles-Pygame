@@ -9,8 +9,8 @@ Acts as a successor to [Tank Battles: The Final War](https://scratch.mit.edu/pro
 
 
 # Installation
-- Navigate to latest release
-- Download executable for your OS
+- Clone the repository to your device
+- Run the tanks.py file using your Python interpreter
 - Done :)
 
 
