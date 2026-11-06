@@ -1,0 +1,5 @@
+The source code in this project is licensed under the MIT License. See the CODE_LICENSE file for details.
+
+All artistic assets, including but not limited to character designs, 3D models, 2D sprites, textures, animations, music, sound effects, dialogue, storyline, and promotional branding, are strictly "All Rights Reserved" by GrimPixelZ. 
+
+You may not redistribute, modify, or commercially exploit these artistic assets without explicit written permission.
